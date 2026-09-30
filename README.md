@@ -4,6 +4,7 @@ Python package `ohho-os` (import `ohho`), version 1.1.1. The `ohho` console
 script is installed by `pip install -e .`.
 
 [![CI](https://github.com/ohho-robotics/ohho-sdk/actions/workflows/ci.yml/badge.svg)](https://github.com/ohho-robotics/ohho-sdk/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 
 The badge reads `.github/workflows/ci.yml` on
 [ohho-robotics/ohho-sdk](https://github.com/ohho-robotics/ohho-sdk).
@@ -83,10 +84,7 @@ root.
 
 ## Licence
 
-TODO. Varun decides the licence in OHH-18. `pyproject.toml` does not set
-`license`. The `LICENSE` file states the same gap. Do not treat earlier
-commits that still contain an Apache-2.0 `LICENSE` as the licence of
-this tree.
+Apache-2.0. The full text is [`LICENSE`](LICENSE).
 
 ## Releasing
 
@@ -97,4 +95,4 @@ git push origin v1.1.1
 
 `v1.1.1` matches `version` in `pyproject.toml`. `.github/workflows/release.yml` runs on tags matching `v*`. It fails the release when the tag version and that `version` differ, builds the sdist and wheel with `python -m build`, runs `twine check`, and publishes to PyPI with trusted publishing (`pypa/gh-action-pypi-publish`, `environment: pypi`, no API token). A following job, in a fresh virtualenv on Ubuntu and macOS, retries `pip install ohho-os==<tag version>` until that version is installable, then runs `ohho doctor`.
 
-No tag has been pushed for this tree, and nothing has been published. `pyproject.toml` does not set `license` (OHH-18), so PyPI metadata will not include a licence until that decision lands.
+No tag has been pushed for this tree, and nothing has been published.

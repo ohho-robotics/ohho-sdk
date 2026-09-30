@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=64"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,8 +8,8 @@ version = "1.1.1"
 description = "OhhO OS — the open-source, robot-agnostic engine for any robot, with or without ROS."
 readme = "README.md"
 requires-python = ">=3.10"
-# TODO(OHH-18): Varun decides the licence. Do not set `license` or
-# `license-files` until that issue lands. See the LICENSE file.
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 authors = [{ name = "OhhO" }]
 keywords = ["robotics", "ros2", "vla", "agent", "embodied-ai"]
 classifiers = [

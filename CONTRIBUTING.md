@@ -161,4 +161,4 @@ ohho market run omnibot dance
 
 ## License
 
-TODO. Varun decides the licence in OHH-18. See `LICENSE`. Do not assume Apache-2.0.
+Apache-2.0. See `LICENSE`.
