@@ -8,7 +8,7 @@
 > **This checkout is the ohho-sdk tree.** The Python package is at the
 > repository root. Paths written below as `sdk/` refer to that root
 > (`tests/`, not `sdk/tests/`). The TypeScript workspace is in `ts/` and
-> is unchanged; `tsc` fails there. The licence is a TODO (OHH-18).
+> is unchanged; `tsc` fails there. The licence is Apache-2.0 (OHH-18).
 
 - **Package:** `ohho-os` (imports as `ohho`) — repository root of
   [ohho-sdk](https://github.com/ohho-robotics/ohho-sdk).
@@ -78,7 +78,7 @@ etc.). It is the open-core that those consoles run on. Open-core model:
 ```
    ohho.com           OhhO Cloud (the ~19 paid consoles)         ← Stripe tiers
                                  │ same APIs
-   pip install →      OhhO OS  (this package; licence TODO, OHH-18)  ← you are here
+   pip install →      OhhO OS  (this package; Apache-2.0)  ← you are here
 ```
 
 **The four differentiators (competitor-agnostic, as advertised on `/os`):**
@@ -459,10 +459,8 @@ All milestones (M0–M5) are complete. OhhO OS is at v1.1.1. To continue:
 - **Launch robots:** OmniBot + Unitree Go2 (max contrast: wheeled/serial/has-arm
   vs legged/DDS/no-arm).
 - **Language:** Python-first; the web `Transport` types are the shared contract.
-- **License:** TODO. Varun decides it in OHH-18. `pyproject.toml` does not
-  set `license`. The `LICENSE` file at the repository root marks that gap.
-  Earlier commits of this Python history still contain an Apache-2.0
-  `LICENSE` text; that text is not the licence of this tree.
+- **License:** Apache-2.0 (OHH-18). `pyproject.toml` sets
+  `license = "Apache-2.0"` and `license-files = ["LICENSE"]`.
 - **OSS home:** the canonical public package is
   https://github.com/ohho-robotics/ohho-sdk. `pyproject.toml` `Homepage`
   and `Source` point there.

@@ -3,8 +3,7 @@ name: Release
 # Publishes ohho-os to PyPI when a v* tag is pushed.
 # Authentication is trusted publishing only: the pypi environment plus
 # id-token: write. This file does not set a PyPI API token.
-# pyproject.toml has no license field until OHH-18, so the upload
-# metadata will not include a licence.
+# pyproject.toml sets license = "Apache-2.0" (OHH-18).
 
 on:
   push:
