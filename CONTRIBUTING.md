@@ -17,8 +17,8 @@ automatically because it targets the `Robot` abstraction and the `Runtime` /
 ## Getting started
 
 ```bash
-pip install -e sdk                      # editable, dependency-free base
-python -m unittest discover -s sdk/tests   # should be green
+pip install -e .                        # editable, dependency-free base
+python -m unittest discover -s tests       # see README for the last local count
 ohho doctor                             # check your environment
 ```
 
@@ -76,7 +76,7 @@ _HARDWARE["my-adapter"] = MyAdapterTransport
 ### 4. Write a test (no hardware needed)
 
 ```python
-# sdk/tests/test_my_adapter.py
+# tests/test_my_adapter.py
 import unittest
 
 class TestMyAdapter(unittest.TestCase):
@@ -88,9 +88,9 @@ class TestMyAdapter(unittest.TestCase):
 ### 5. Run lint + tests
 
 ```bash
-ruff format sdk/
-ruff check sdk/
-python -m unittest discover -s sdk/tests
+ruff format ohho tests
+ruff check ohho tests
+python -m unittest discover -s tests
 ```
 
 ---
@@ -142,7 +142,7 @@ ohho market run omnibot dance
    relying on live threads. Add tests with every new module.
 
 5. **`ruff format` + `ruff check` must pass.** CI runs both repo-wide. Run
-   `ruff format sdk/` before committing.
+   `ruff format ohho tests` before committing.
 
 ---
 
@@ -154,11 +154,11 @@ ohho market run omnibot dance
 
 ## Pull request checklist
 
-- [ ] Tests pass: `python -m unittest discover -s sdk/tests`
-- [ ] Lint passes: `ruff format --check sdk/ && ruff check sdk/`
+- [ ] Tests pass: `python -m unittest discover -s tests`
+- [ ] Lint passes: `ruff format --check ohho tests && ruff check ohho tests`
 - [ ] `AGENTS.md` §0/§3 updated if you added files or changed the state table
 - [ ] Version bumped in `ohho/__init__.py` and `pyproject.toml` for milestones
 
 ## License
 
-Apache-2.0. See `sdk/LICENSE`.
+TODO. Varun decides the licence in OHH-18. See `LICENSE`. Do not assume Apache-2.0.

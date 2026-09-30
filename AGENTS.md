@@ -5,7 +5,13 @@
 > with no prior context can understand what exists, why it's built this way, and
 > exactly what to do next. Keep it up to date as milestones land.
 
-- **Package:** `ohho-os` (imports as `ohho`) — lives in `sdk/`.
+> **This checkout is the ohho-sdk tree.** The Python package is at the
+> repository root. Paths written below as `sdk/` refer to that root
+> (`tests/`, not `sdk/tests/`). The TypeScript workspace is in `ts/` and
+> is unchanged; `tsc` fails there. The licence is a TODO (OHH-18).
+
+- **Package:** `ohho-os` (imports as `ohho`) — repository root of
+  [ohho-sdk](https://github.com/ohho-robotics/ohho-sdk).
 - **What it is:** the open-source, robot-agnostic engine that powers the OhhO
   platform. One API controls any robot, **with or without ROS**, and carries the
   whole stack from perception to training.
@@ -31,7 +37,7 @@
   ray-cast scans and **solid-object collision**; the agent's tool registry gained
   `navigate_to, explore, look_around, where_is, objects_near, remember_note` and
   injects the memory summary into every goal. All stdlib — base stays dep-free.
-- **Current version:** `1.1.0` (see `ohho/__init__.py` `__version__`).
+- **Current version:** `1.1.1` (see `ohho/__init__.py` `__version__`).
 
 ---
 
@@ -50,8 +56,8 @@
 | **Navigation (native, no-ROS)** | ✅ **v1.1.0** — `ohho.nav`: grid mapping, costmap, A*, frontiers, `Navigator` (collision-aware). CLI `ohho nav goto/explore/map` |
 | **Memory + perception** | ✅ **v1.1.0** — `ohho.memory` (object permanence, temporal queries, JSON persistence) + `ohho.perception` (`SimPerceptor`, Claude-vision `VlmPerceptor`). CLI `ohho look`, `ohho memory` |
 | CLI (`ohho`) | ✅ `doctor list version connect sim drive agent serve market profile nav look memory` |
-| Tests | ✅ 151 `unittest` cases (`sdk/tests/`) + 4 HIL tests (`sdk/tests/hil/`, skip unless `OHHO_HIL=1`) |
-| CI | ✅ green (`Lint (ruff)` + repo build); see §7 |
+| Tests | Base install, Python 3.12.3, Linux: `python -m unittest discover -s tests` → Ran 197 tests, OK (skipped=18). Skips: 4 HIL (`OHHO_HIL=1`), 13 `agent_engine`+numpy, 1 fastapi. |
+| CI | `.github/workflows/ci.yml` — ubuntu, macos, windows × Python 3.10–3.13. No GitHub run is attached to this commit. |
 
 **M1 (two-robot hardware vertical slice) — software complete.** All four adapters
 (`yahboom`, `feetech`, `composite`, `unitree`) are built and unit-tested against
@@ -72,7 +78,7 @@ etc.). It is the open-core that those consoles run on. Open-core model:
 ```
    ohho.com           OhhO Cloud (the ~19 paid consoles)         ← Stripe tiers
                                  │ same APIs
-   pip install →      OhhO OS  (this SDK, MIT/Apache, open)       ← you are here
+   pip install →      OhhO OS  (this package; licence TODO, OHH-18)  ← you are here
 ```
 
 **The four differentiators (competitor-agnostic, as advertised on `/os`):**
@@ -229,10 +235,10 @@ does the callback bookkeeping). **New adapters = subclass `BaseTransport`.**
 
 ```bash
 # from repo root
-pip install -e sdk                       # editable, dependency-free base
-# (add extras as they gain code: pip install -e 'sdk[unitree]')
+pip install -e .                         # editable, dependency-free base
+# (add extras as they gain code: pip install -e '.[unitree]')
 
-python3 -m unittest discover -s sdk/tests   # 40 tests, ~1s
+python3 -m unittest discover -s tests
 ohho doctor                              # environment / runtimes / adapters / robots
 ohho sim --robot omnibot --seconds 5     # drive a pattern in simulation
 ohho agent omnibot "explore the room"
@@ -256,8 +262,8 @@ ruff check        --exclude robot_ws/src/omnibot_firmware .
 - **Style:** `from __future__ import annotations` at the top of every module;
   full type hints; docstrings on public classes/functions. **Code must pass
   `ruff format` and `ruff check`** (CI runs both repo-wide — see §7). After
-  editing, run `ruff format sdk/` before committing.
-- **Tests:** stdlib `unittest` (no pytest dependency), under `sdk/tests/`,
+  editing, run `ruff format ohho tests` before committing.
+- **Tests:** stdlib `unittest` (no pytest dependency), under `tests/`,
   deterministic (build `Robot` over a `SimTransport` and call `step(dt)`
   manually rather than relying on the live thread — see `tests/test_robot.py`).
   Add tests with every new module.
@@ -269,24 +275,17 @@ ruff check        --exclude robot_ws/src/omnibot_firmware .
 
 ---
 
-## 7. CI / git notes (important, learned the hard way)
+## 7. CI / git notes
 
-- The repo's **`Lint (ruff)`** job (`.github/workflows/ros2_ci.yml`) runs
-  `ruff format --check` **and** `ruff check` over the **whole repo** (`.`),
-  config in the **root `pyproject.toml`** `[tool.ruff]`. New `sdk/` files must
-  pass both. **This already bit us once** — M0's first push failed `ruff format
-  --check`; fix is just `ruff format sdk/`.
-- **`Build & Test (Jazzy)` `needs: lint`** — if lint fails it shows as
-  *skipped*, not failed. Green lint first.
-- The ROS workflow has `paths-ignore` for `**.md`, android, etc. — **Markdown-only
-  changes (like editing this file) skip the ROS build entirely.**
-- **Vercel** only deploys `website/**` changes (`vercel.json` ignoreCommand), so
-  SDK changes don't touch the site deploy.
-- **Editable-install artifacts** (`sdk/ohho_os.egg-info`, `__pycache__`) are
-  gitignored via `sdk/.gitignore` — never commit them.
-- **Branch:** development happened on `claude/image-analysis-6y22lz`. PRs target
-  `main`. After pushing, open a **draft PR**; the repo has a PR template
-  (`.github/pull_request_template.md`) — mirror its sections.
+- This repository's workflow is `.github/workflows/ci.yml`. It installs with
+  `pip install -e .`, runs `python -m unittest discover -s tests`, then
+  `ohho doctor` and `ohho sim --robot omnibot --seconds 2`, on Ubuntu, macOS,
+  and Windows for Python 3.10, 3.11, 3.12, and 3.13.
+- There is no PyPI publish workflow here (that is OHH-20).
+- Editable-install artifacts (`ohho_os.egg-info`, `__pycache__`) are gitignored.
+- The notes that used to live in this section described OmniBotPro's ROS
+  workflow (`ros2_ci.yml`, Vercel, `sdk/` paths). They do not apply to this
+  repository.
 
 ---
 
@@ -327,11 +326,11 @@ robot-agnosticism. Pair: **OmniBot** (wheeled, USB serial) + **Unitree Go2**
 - Extras: `[serial]` (pyserial), `[arm]` (lerobot), `[unitree]` (cyclonedds).
 - **Mock/loopback tests** (27 new, 85 total): `test_feetech.py`,
   `test_composite.py`, updated `test_unitree.py` + `test_adapters.py`.
-- **HIL test harness**: `sdk/tests/hil/test_hil.py` — 4 tests (OmniBot base,
+- **HIL test harness**: `tests/hil/test_hil.py` — 4 tests (OmniBot base,
   OmniBot arm, OmniBot composite, Go2 DDS), skipped unless `OHHO_HIL=1`.
 
 **Remaining (hardware-gated only):** on-robot bring-up against the real OmniBot
-+ Go2 — run `OHHO_HIL=1 python -m unittest discover -s sdk/tests/hil -v` on the
++ Go2 — run `OHHO_HIL=1 python -m unittest discover -s tests/hil -v` on the
 bench. DJI / MAVLink adapter not started.
 
 ### ✅ M2 — Real agent brain (DONE)
@@ -414,32 +413,32 @@ Implemented `Ros2Runtime` (rclpy node behind the existing `Runtime` port) and
 - **Root `CLAUDE.md`** — updated to document the `sdk/` area.
 - **Version bumped to `1.0.0`** — all milestones (M0–M5) complete.
 - 22 new tests (`test_market.py` + `test_profiles.py`).
-- **Remaining for PyPI publish:** `python -m build && twine upload` (needs a
-  PyPI account + API token — do this outside the repo).
+- **PyPI:** not published from this repository. OHH-20 covers trusted
+  publishing. Do not add a publish workflow here.
 
 ---
 
 ## 9. START HERE: post-1.0 development
 
-All milestones (M0–M5) are complete. OhhO OS is at v1.0.0. To continue:
+All milestones (M0–M5) are complete. OhhO OS is at v1.1.1. To continue:
 
-1. `pip install -e sdk` and run `python -m unittest discover -s sdk/tests` to
-   confirm a green baseline (151 tests, 4 HIL skipped).
-2. **PyPI publish:** `python -m build && twine upload dist/*` (needs PyPI
-   account + API token).
+1. `pip install -e .` and run `python -m unittest discover -s tests`.
+   On a base install (Python 3.12.3, Linux) that reported
+   `Ran 197 tests` / `OK (skipped=18)`.
+2. **PyPI publish** is OHH-20. This repository does not publish.
 3. **Installer:** `curl | sh` behind `ohho.com/install.sh`.
-4. **New robots/skills:** follow `sdk/CONTRIBUTING.md` — one manifest + one
+4. **New robots/skills:** follow `CONTRIBUTING.md` — one manifest + one
    adapter + one test.
 5. **On-robot M1 bring-up:** `OHHO_HIL=1 python -m unittest discover -s
-   sdk/tests/hil -v` on the bench.
+   tests/hil -v` on the bench.
 6. Keep `AGENTS.md` §0/§3/§8 in sync as you add features.
 
 ### M1 on-robot bring-up (when hardware is available)
 
-1. Install extras: `pip install -e 'sdk[serial,arm,unitree]'`.
+1. Install extras: `pip install -e '.[serial,arm,unitree]'`.
 2. Set env vars: `OHHO_HIL=1`, `OHHO_OMNIBOT_PORT=/dev/ttyUSB0`,
    `OHHO_OMNIBOT_ARM=/dev/ttyACM0`, `OHHO_GO2_IFACE=eth0`.
-3. Run `python -m unittest discover -s sdk/tests/hil -v`.
+3. Run `python -m unittest discover -s tests/hil -v`.
 4. Or drive manually:
    ```python
    from ohho import Robot
@@ -460,12 +459,13 @@ All milestones (M0–M5) are complete. OhhO OS is at v1.0.0. To continue:
 - **Launch robots:** OmniBot + Unitree Go2 (max contrast: wheeled/serial/has-arm
   vs legged/DDS/no-arm).
 - **Language:** Python-first; the web `Transport` types are the shared contract.
-- **License:** **Apache-2.0** (confirmed by the user). `pyproject.toml` declares
-  it and `sdk/LICENSE` carries the full text + `Copyright 2024 OhhO` notice.
-- **OSS home:** the SDK stays in `varunvaidhiya/OmniBotPro` (confirmed by the
-  user) — `sdk/` is self-contained, `GITHUB_HREF` and `pyproject` `Source` URL
-  already point here. No separate `ohho-os` repo for now; revisit at M5 if a
-  cleaner public face is wanted.
+- **License:** TODO. Varun decides it in OHH-18. `pyproject.toml` does not
+  set `license`. The `LICENSE` file at the repository root marks that gap.
+  Earlier commits of this Python history still contain an Apache-2.0
+  `LICENSE` text; that text is not the licence of this tree.
+- **OSS home:** the canonical public package is
+  https://github.com/ohho-robotics/ohho-sdk. `pyproject.toml` `Homepage`
+  and `Source` point there.
 
 ---
 
