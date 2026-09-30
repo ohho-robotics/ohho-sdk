@@ -88,7 +88,13 @@ TODO. Varun decides the licence in OHH-18. `pyproject.toml` does not set
 commits that still contain an Apache-2.0 `LICENSE` as the licence of
 this tree.
 
-## Publish
+## Releasing
 
-There is no PyPI publish workflow in this repository. Publishing
-`ohho-os` is OHH-20.
+```bash
+git tag v1.1.1
+git push origin v1.1.1
+```
+
+`v1.1.1` matches `version` in `pyproject.toml`. `.github/workflows/release.yml` runs on tags matching `v*`. It fails the release when the tag version and that `version` differ, builds the sdist and wheel with `python -m build`, runs `twine check`, and publishes to PyPI with trusted publishing (`pypa/gh-action-pypi-publish`, `environment: pypi`, no API token). A following job, in a fresh virtualenv on Ubuntu and macOS, retries `pip install ohho-os==<tag version>` until that version is installable, then runs `ohho doctor`.
+
+No tag has been pushed for this tree, and nothing has been published. `pyproject.toml` does not set `license` (OHH-18), so PyPI metadata will not include a licence until that decision lands.
