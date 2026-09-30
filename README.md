@@ -1,79 +1,94 @@
 # OhhO OS
 
-**The open-source engine for any robot.** One robot-agnostic runtime that
-controls anything on wheels, legs or wings — **with or without ROS** — and
-carries the whole stack from perception to training.
+Python package `ohho-os` (import `ohho`), version 1.1.1. The `ohho` console
+script is installed by `pip install -e .`.
 
-> This is the engine the [OhhO platform](https://ohho-robotics.com) products run
-> on. It is installable and usable on its own.
+[![CI](https://github.com/ohho-robotics/ohho-sdk/actions/workflows/ci.yml/badge.svg)](https://github.com/ohho-robotics/ohho-sdk/actions/workflows/ci.yml)
 
-## Status
+The badge reads `.github/workflows/ci.yml` on
+[ohho-robotics/ohho-sdk](https://github.com/ohho-robotics/ohho-sdk).
+That workflow has not run for this tree yet.
 
-`v1.1.0` — **M0–M5 complete + native nav & memory.** Highlights: 6 adapters
-(sim, Yahboom serial, Feetech arm, composite, Unitree DDS, ROS 2 topics), two
-runtimes (native + ROS 2, auto-detected), a real agent brain
-(perceive→reason→act→reflect with tools built from capabilities), the
-record→train→serve pipeline, the skill market, hardware profiles, **built-in
-navigation** (occupancy mapping, A*, frontier exploration — `ohho nav`), and
-**spatio-temporal memory + perception** (`ohho look` / `ohho memory`,
-Claude-vision optional). See `AGENTS.md` for the full state and
-`website/docs/ohho-os/` for user docs.
-
-The original M0 scaffold, for reference:
-
-- The Robot Abstraction Layer (`Robot`) with a capability model
-- A `native` runtime (no ROS) and a `ros2` runtime stub behind one `Runtime` port
-- A deterministic in-process **simulator** adapter (no hardware required)
-- A robot registry with built-in robots (OmniBot, Unitree Go2, a generic sim bot)
-- The `ohho` CLI (`doctor`, `sim`, `connect`, `drive`, `agent`, `list`)
-
-Real hardware adapters (Unitree DDS, DJI MAVLink, …), the full ROS 2 backend, and
-the training pipelines are wired as the next milestones — they plug into the same
-abstraction this scaffold defines.
-
-## Install
+## Three commands
 
 ```bash
-pip install -e 'sdk[base]'        # from the repo root (editable)
-# extras: [unitree] [dji] [ros2] [train] [serve] [yaml] [all]
+pip install -e .
+ohho doctor
+ohho sim --robot omnibot --seconds 2
 ```
 
-## Quickstart
+`pip install -e .` installs the dependency-free base (stdlib only) and the
+`ohho` script. `ohho doctor` prints the interpreter, the runtimes and
+adapters it can import, and the built-in robot ids. `ohho sim` connects
+with transport `sim://` and runtime `native`, then drives an in-process
+pattern for the given number of seconds.
 
-```python
-from ohho import Robot
+On this machine (Python 3.12.3, Linux, base install) both commands exited 0.
+`ohho doctor` reported runtime `native`, adapter `sim`, and robots
+`omnibot`, `sim`, `unitree-go2`.
 
-bot = Robot.connect("omnibot")        # runs in simulation until a real adapter is installed
-bot.drive(vx=0.2, w=0.3)
-print(bot.telemetry().odom)
-if bot.has("manipulation"):
-    bot.move_joints([0, -0.5, 0.5, 0, 0, 0.2])
-bot.disconnect()
-```
-
-## CLI
+## Tests
 
 ```bash
-ohho doctor                 # environment, runtimes, adapters, robots
-ohho list                   # built-in robots
-ohho sim --robot omnibot    # drive a pattern in simulation, stream telemetry
-ohho drive omnibot --vx 0.15 --seconds 3
-ohho agent omnibot "explore the room"
+python -m unittest discover -s tests
 ```
 
-## Layout
+Same environment as above:
 
 ```
-ohho/
-  schema.py        # Velocity, Odometry, JointReading, Telemetry, TransportStatus
-  capabilities.py  # capability vocabulary
-  registry.py      # RobotSpec + built-in robots + manifest loading
-  transport.py     # Transport interface (ported from the web Connect layer)
-  runtime/         # Runtime port + native / ros2 backends
-  adapters/        # sim adapter (+ resolution); hardware adapters land here
-  robot.py         # the Robot Abstraction Layer (public API)
-  agent.py         # minimal agent loop (delegates to agent_engine when present)
-  cli.py           # the `ohho` command
+Ran 197 tests in 22.971s
+OK (skipped=18)
 ```
 
-See `docs/ohho-os` on the website for the full design.
+The 18 skips were: 4 hardware-in-the-loop tests (`OHHO_HIL` unset),
+13 tests that need `agent_engine` and numpy, and 1 test that needs
+fastapi (`[serve]`). No failures.
+
+CI runs that discover command, then `ohho doctor` and
+`ohho sim --robot omnibot --seconds 2`, on Ubuntu, macOS, and Windows
+for Python 3.10, 3.11, 3.12, and 3.13. This commit does not include a
+GitHub Actions result for those cells.
+
+## Needs hardware
+
+`ohho doctor`, `ohho sim --robot omnibot`, and the default test run do
+not open a serial port, a camera, or a GPU. The simulator is in-process.
+
+`tests/hil/` talks to real robots. Every test in that package is
+skipped unless `OHHO_HIL=1`. The ports they use:
+
+| Test | Device | Environment variable | Default |
+|---|---|---|---|
+| OmniBot base | Yahboom serial | `OHHO_OMNIBOT_PORT` | `/dev/ttyUSB0` |
+| OmniBot arm | Feetech bus | `OHHO_OMNIBOT_ARM` | `/dev/ttyACM0` |
+| OmniBot base + arm | both of the above | both | both defaults |
+| Unitree Go2 | DDS interface | `OHHO_GO2_IFACE` | `eth0` |
+
+Those adapters are not installed by `pip install -e .`. The extras are
+`serial` (pyserial), `arm` (lerobot), and `unitree` (cyclonedds). The
+`ros2` extra does not pip-install `rclpy`; that module comes from a ROS 2
+distro. `train` needs torch. None of those were installed for the test
+run above.
+
+## TypeScript
+
+`ts/` is the previous TypeScript workspace (`package.json`,
+`tsconfig.json`, `packages/`), moved with the same file contents. It does
+not typecheck. `tsc --noEmit -p ts/tsconfig.json` (TypeScript 5.6.3)
+exits with 246 `error TS` diagnostics, including missing modules
+(`react`, `vitest`, `@/lib/...`) and files that are not in this tree
+(`packages/schemas/src/types.ts`, `packages/schemas/src/robot-catalog.ts`).
+See `ts/AGENTS.md`. Paths in that file still describe the old repository
+root.
+
+## Licence
+
+TODO. Varun decides the licence in OHH-18. `pyproject.toml` does not set
+`license`. The `LICENSE` file states the same gap. Do not treat earlier
+commits that still contain an Apache-2.0 `LICENSE` as the licence of
+this tree.
+
+## Publish
+
+There is no PyPI publish workflow in this repository. Publishing
+`ohho-os` is OHH-20.
