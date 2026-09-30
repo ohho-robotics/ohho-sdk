@@ -1,0 +1,10 @@
+TODO — licence not chosen
+
+No licence is granted for this repository yet.
+
+Varun decides the licence in Linear OHH-18. Until that decision, do not
+treat this tree as Apache-2.0, MIT, or any other licence.
+
+Earlier commits in the Python history still contain an Apache-2.0 LICENSE
+text from the OmniBotPro `sdk/` tree. That historical text is not a
+decision for this repository.
