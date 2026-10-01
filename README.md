@@ -1,6 +1,6 @@
 # OhhO OS
 
-Python package `ohho-os` (import `ohho`), version 1.1.1. The `ohho` console
+Python package `ohho-os` (import `ohho`), version 1.1.2. The `ohho` console
 script is installed by `pip install -e .`.
 
 [![CI](https://github.com/ohho-robotics/ohho-sdk/actions/workflows/ci.yml/badge.svg)](https://github.com/ohho-robotics/ohho-sdk/actions/workflows/ci.yml)
@@ -89,10 +89,10 @@ Apache-2.0. The full text is [`LICENSE`](LICENSE).
 ## Releasing
 
 ```bash
-git tag v1.1.1
-git push origin v1.1.1
+git tag v1.1.2
+git push origin v1.1.2
 ```
 
-`v1.1.1` matches `version` in `pyproject.toml`. `.github/workflows/release.yml` runs on tags matching `v*`. It fails the release when the tag version and that `version` differ, builds the sdist and wheel with `python -m build`, runs `twine check`, and publishes to PyPI with trusted publishing (`pypa/gh-action-pypi-publish`, `environment: pypi`, no API token). A following job, in a fresh virtualenv on Ubuntu and macOS, retries `pip install ohho-os==<tag version>` until that version is installable, then runs `ohho doctor`.
+`v1.1.2` matches `version` in `pyproject.toml`. `.github/workflows/release.yml` runs on tags matching `v*`. It fails the release when the tag version and that `version` differ, checks every classifier against `trove-classifiers`, builds the sdist and wheel with `python -m build`, runs `twine check`, and publishes to PyPI with trusted publishing (`pypa/gh-action-pypi-publish`, `environment: pypi`, no API token). A following job, in a fresh virtualenv on Ubuntu and macOS, retries `pip install ohho-os==<tag version>` until that version is installable, then runs `ohho doctor`.
 
-No tag has been pushed for this tree, and nothing has been published.
+Tag `v1.1.1` already points at `286d408` and was not published. PyPI returned 400 because `Topic :: Scientific/Engineering :: Robotics` is not a trove classifier. That tag stays. `v1.1.2` has not been pushed.

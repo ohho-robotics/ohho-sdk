@@ -23,6 +23,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Validate trove classifiers
+        run: |
+          python -m pip install trove-classifiers tomli
+          python scripts/check_classifiers.py
       - name: Require tag version to match pyproject
         run: |
           python - <<'PY'
