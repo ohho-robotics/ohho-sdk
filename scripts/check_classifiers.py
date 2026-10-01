@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import sys
-import tomllib
 from pathlib import Path
 
 import trove_classifiers
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python 3.10
+    import tomli as tomllib
 
 
 def main() -> int:
