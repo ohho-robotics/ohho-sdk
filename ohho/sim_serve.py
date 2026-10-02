@@ -150,11 +150,17 @@ class SimServe:
 
     async def start(self) -> None:
         """Start backend connections and the WebSocket server."""
+        if self.backend == "ros2" and not is_ros2_available():
+            raise SimServeUnavailable(
+                "backend 'ros2' depends on the [ros2] extra (source your ROS 2 environment or set OHHO_ROSBRIDGE)."
+            )
+
         try:
             import websockets
         except ImportError:
             raise SimServeUnavailable(
-                "sim-serve requires websockets: pip install 'ohho-os[serve]'"
+                "sim-serve requires websockets: "
+                "pip install 'ohho-os[serve]' or 'ohho-os[sim-serve]'"
             )
 
         self._loop = asyncio.get_running_loop()
@@ -167,10 +173,6 @@ class SimServe:
                 self.robot_id, transport="sim://", runtime="native"
             )
         elif self.backend == "ros2":
-            if not is_ros2_available():
-                raise SimServeUnavailable(
-                    "backend 'ros2' depends on the [ros2] extra (source your ROS 2 environment or set OHHO_ROSBRIDGE)."
-                )
             self._rosbridge_ws = await websockets.connect(self.rosbridge_url)
             await self._rosbridge_ws.send(
                 json.dumps(
