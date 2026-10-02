@@ -185,6 +185,30 @@ def _cmd_serve(args) -> int:
     return 0
 
 
+def _cmd_sim_serve(args) -> int:
+    if args.backend in ("isaac", "mujoco"):
+        print("not built", file=sys.stderr)
+        return 1
+
+    from .sim_serve import SimServeUnavailable, serve_sim
+
+    try:
+        serve_sim(
+            backend=args.backend,
+            robot=args.robot,
+            host=args.host,
+            port=args.port,
+            rosbridge=args.rosbridge,
+            rate_hz=args.rate,
+        )
+    except SimServeUnavailable as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    except KeyboardInterrupt:
+        print("\nstopped.")
+    return 0
+
+
 def _cmd_market(args) -> int:
     from .market import list_skills, run_skill, SkillRequirementsNotMet
 
@@ -429,6 +453,30 @@ def build_parser() -> argparse.ArgumentParser:
         "--mock", action="store_true", help="use a no-op model (sim loop, no GPU)"
     )
     sv.set_defaults(func=_cmd_serve)
+
+    ss = sub.add_parser("sim-serve", help="serve robot simulation over WebSocket")
+    ss.add_argument(
+        "--backend",
+        default="sim",
+        choices=["sim", "ros2", "isaac", "mujoco"],
+        help="simulation backend (sim, ros2, isaac, mujoco)",
+    )
+    ss.add_argument("--robot", default="omnibot", help="robot spec id for sim backend")
+    ss.add_argument(
+        "--host", default="0.0.0.0", help="host to bind the WebSocket server"
+    )
+    ss.add_argument(
+        "--port", type=int, default=8765, help="port to bind the WebSocket server"
+    )
+    ss.add_argument(
+        "--rosbridge",
+        default="ws://localhost:9090",
+        help="rosbridge WebSocket URL for ros2 backend",
+    )
+    ss.add_argument(
+        "--rate", type=float, default=20.0, help="telemetry broadcast rate in Hz"
+    )
+    ss.set_defaults(func=_cmd_sim_serve)
 
     mk = sub.add_parser("market", help="list and run robot skills")
     mk_sub = mk.add_subparsers(dest="action")

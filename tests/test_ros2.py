@@ -8,6 +8,7 @@ full Ros2Runtime + Ros2Transport chain is testable on any OS without ROS 2.
 import json
 import math
 import time
+from typing import Any
 import unittest
 
 from ohho.adapters.ros2 import Ros2Transport
@@ -189,10 +190,6 @@ class FakeRos2Node:
 
     def get_publisher(self, topic):
         return self._publishers.get(topic)
-
-
-# Make `Any` available for FakeRos2Node typing
-from typing import Any
 
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
