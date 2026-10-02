@@ -67,6 +67,46 @@ Those adapters are not installed by `pip install ohho-os`. The extras are
 distro. `train` needs torch. None of those were installed for the test
 run above.
 
+## Simulation WebSocket Server (`sim-serve`)
+
+`ohho sim-serve` exposes a JSON WebSocket session for teleoperation and telemetry streaming. It supports the in-process simulator (`sim://`) or connects to ROS 2 through rosbridge.
+
+### Message Schema
+
+#### Client sends (JSON):
+- `velocity`: Target linear and angular velocity, e.g. `{"linear": {"x": 0.2, "y": 0.0}, "angular": {"z": 0.1}}`.
+- `joints`: Mapping of joint name to radians, e.g. `{"arm_shoulder_pan": 0.5}`.
+- `deadman` (`bool`): Deadman switch. If `false` or if no client message arrives for 300 ms, the commanded velocity is zero.
+- `estop` (`bool`): Emergency stop. If `true`, estop latches until a message with `estop: false` arrives.
+
+#### Server sends (JSON):
+- `odom`: Current odometry pose `{"x": float, "y": float, "yaw": float}`.
+- `joints`: Current joint positions `{"<name>": float, ...}`.
+- `backend`: Backend identifier (`"sim"` or `"ros2"`).
+- `camera`: Base64 JPEG string (optional) or `no_camera: true`.
+
+### Commands
+
+1. **In-process simulation (no ROS required):**
+   ```bash
+   ohho sim-serve --backend sim --port 8765
+   ```
+   Serves the existing in-process `sim://` robot on port 8765 with zero external dependencies.
+
+2. **ROS 2 bridge:**
+   ```bash
+   ohho sim-serve --backend ros2 --rosbridge ws://localhost:9090
+   ```
+   Forwards velocity commands to `/cmd_vel` and reads `/odom` via rosbridge. Depends on the `[ros2]` extra.
+   > **Note:** Gazebo itself is launched from the OmniBot repo, not from this package.
+
+3. **Unsupported backends:**
+   ```bash
+   ohho sim-serve --backend isaac
+   ohho sim-serve --backend mujoco
+   ```
+   Both exit non-zero and print `not built`.
+
 ## TypeScript
 
 `ts/` is the previous TypeScript workspace (`package.json`,

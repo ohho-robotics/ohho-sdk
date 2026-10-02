@@ -40,7 +40,8 @@ agent = ["numpy>=1.24", "anthropic>=0.40"]   # real agent brain (agent_engine + 
 data = ["pyarrow>=14.0"]                     # LeRobot Parquet dataset writer
 unitree = ["cyclonedds>=0.10"]               # Unitree DDS adapter (G1, Go2, H1, B2 …)
 dji = ["pymavlink>=2.4"]                      # DJI / MAVLink adapter (drones)
-serve = ["fastapi>=0.110", "uvicorn>=0.27"]  # serve policies over REST
+serve = ["fastapi>=0.110", "uvicorn>=0.27", "websockets>=11.0"]  # serve policies over REST or WebSocket
+sim-serve = ["websockets>=11.0"]              # sim-serve WebSocket server
 train = ["torch>=2.1", "numpy>=1.24"]        # training pipelines (delegates to lerobot_engine)
 ros2 = []                                    # rclpy ships with your ROS 2 distro — source it, then install this extra
 dev = ["pytest>=7"]
@@ -56,6 +57,7 @@ all = [
   "pymavlink>=2.4",
   "fastapi>=0.110",
   "uvicorn>=0.27",
+  "websockets>=11.0",
 ]
 
 [project.urls]

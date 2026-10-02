@@ -55,8 +55,9 @@
 | Training / data / serve | ✅ **M3 complete** — `ohho.data.Recorder` (capture state+action from Robot → LeRobot v2.0), `ohho.train.finetune()` (delegates to lerobot_engine, mock mode for sim), `ohho.serve` (FastAPI server, `ohho serve` CLI). Record→train→serve loop works on sim. |
 | **Navigation (native, no-ROS)** | ✅ **v1.1.0** — `ohho.nav`: grid mapping, costmap, A*, frontiers, `Navigator` (collision-aware). CLI `ohho nav goto/explore/map` |
 | **Memory + perception** | ✅ **v1.1.0** — `ohho.memory` (object permanence, temporal queries, JSON persistence) + `ohho.perception` (`SimPerceptor`, Claude-vision `VlmPerceptor`). CLI `ohho look`, `ohho memory` |
-| CLI (`ohho`) | ✅ `doctor list version connect sim drive agent serve market profile nav look memory` |
-| Tests | Base install, Python 3.12.3, Linux: `python -m unittest discover -s tests` → Ran 197 tests, OK (skipped=18). Skips: 4 HIL (`OHHO_HIL=1`), 13 `agent_engine`+numpy, 1 fastapi. |
+| **Simulation WebSocket (`sim-serve`)** | ✅ **OHH-91 complete** — `ohho.sim_serve` (JSON WebSocket session: velocity/joints/deadman/estop, 300ms timeout, estop latch; backends: `sim` and `ros2` via rosbridge; isaac/mujoco exit non-zero). CLI `ohho sim-serve` |
+| CLI (`ohho`) | ✅ `doctor list version connect sim drive agent serve sim-serve market profile nav look memory` |
+| Tests | Base install, Python 3.12.3, Linux: `python -m unittest discover -s tests` → Ran 206 tests, OK (skipped=18). |
 | CI | `.github/workflows/ci.yml` — ubuntu, macos, windows × Python 3.10–3.13. No GitHub run is attached to this commit. |
 
 **M1 (two-robot hardware vertical slice) — software complete.** All four adapters
@@ -172,13 +173,14 @@ sdk/
 │   │   └── __init__.py   # finetune(), SUPPORTED_POLICIES, TrainUnavailable, _mock_train()
 │   ├── serve/            # ohho.serve — FastAPI inference server, `ohho serve` CLI
 │   │   └── __init__.py   # serve(), build_app(), ServeUnavailable, _MockModel
+│   ├── sim_serve.py      # ohho.sim_serve — WebSocket teleop and telemetry server (`sim` and `ros2`)
 │   ├── profiles.py       # HardwareProfile, detect_profile(), `ohho profile` CLI
 │   ├── market.py         # Skill registry, @skill decorator, run_skill(), `ohho market` CLI
 │   ├── hardware.py       # resolve_device("auto") -> cuda/mps/cpu (lazy torch)
-│   ├── cli.py            # argparse: doctor/list/version/connect/sim/drive/agent; main()
+│   ├── cli.py            # argparse: doctor/list/version/connect/sim/drive/agent/sim-serve; main()
 │   └── robots/
 │       └── example.json  # example manifest (nested dof/limits) for load_manifest()
-└── tests/                # 85 unittest cases + 4 HIL tests (hil/, skip unless OHHO_HIL=1)
+└── tests/                # unittest suite including test_sim_serve.py
 ```
 
 ---
