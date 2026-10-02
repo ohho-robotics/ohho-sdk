@@ -358,11 +358,24 @@ class TestRos2ExtraCheck(unittest.TestCase):
             with self.assertRaises(SimServeUnavailable) as ctx:
                 asyncio.run(server.start())
             self.assertIn("[ros2]", str(ctx.exception))
+            self.assertFalse(server._running)
         finally:
             if old_distro is not None:
                 os.environ["ROS_DISTRO"] = old_distro
             if old_rb is not None:
                 os.environ["OHHO_ROSBRIDGE"] = old_rb
+
+
+class TestWebsocketsExtraCheck(unittest.TestCase):
+    """When websockets is absent, the sim backend names that dependency."""
+
+    @unittest.skipIf(_has_websockets(), "websockets is installed")
+    def test_sim_unavailable_without_websockets(self):
+        server = SimServe(backend="sim")
+        with self.assertRaises(SimServeUnavailable) as ctx:
+            asyncio.run(server.start())
+        self.assertIn("websockets", str(ctx.exception))
+        self.assertFalse(server._running)
 
 
 if __name__ == "__main__":
