@@ -37,7 +37,7 @@
   ray-cast scans and **solid-object collision**; the agent's tool registry gained
   `navigate_to, explore, look_around, where_is, objects_near, remember_note` and
   injects the memory summary into every goal. All stdlib — base stays dep-free.
-- **Current version:** `1.1.2` (see `ohho/__init__.py` `__version__`).
+- **Current version:** `1.1.3` (see `ohho/__init__.py` `__version__`).
 
 ---
 
@@ -420,7 +420,7 @@ Implemented `Ros2Runtime` (rclpy node behind the existing `Runtime` port) and
 
 ## 9. START HERE: post-1.0 development
 
-All milestones (M0–M5) are complete. OhhO OS is at v1.1.2. To continue:
+All milestones (M0–M5) are complete. OhhO OS is at v1.1.3. To continue:
 
 1. `pip install -e .` and run `python -m unittest discover -s tests`.
    On a base install (Python 3.12.3, Linux) that reported
