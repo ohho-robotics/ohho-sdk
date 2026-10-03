@@ -206,3 +206,17 @@ __all__ = [
     "TinyACTPolicy",
     "load_act_checkpoint",
 ]
+
+
+def __getattr__(name: str) -> Any:
+    if name in ("train_act", "TinyACTPolicy", "load_act_checkpoint"):
+        from . import act
+
+        val = getattr(act, name)
+        globals()[name] = val
+        return val
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __dir__() -> list[str]:
+    return sorted(list(globals().keys()) + list(__all__))

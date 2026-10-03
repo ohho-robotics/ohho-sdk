@@ -529,6 +529,18 @@ class TestSimLoop(unittest.TestCase):
                 # /load_model also retains default model_class ("") instead of "act"
                 self.assertEqual(mock_resolve.call_args[0][0], "")
 
+    def test_train_lazy_exports(self):
+        """OHH-86: ohho.train must lazily export train_act, TinyACTPolicy, load_act_checkpoint."""
+        import ohho.train
+
+        for name in ("train_act", "TinyACTPolicy", "load_act_checkpoint"):
+            self.assertIn(name, ohho.train.__all__)
+            obj = getattr(ohho.train, name)
+            self.assertIsNotNone(obj)
+
+        with self.assertRaises(AttributeError):
+            getattr(ohho.train, "non_existent_export_symbol")
+
 
 if __name__ == "__main__":
     unittest.main()
