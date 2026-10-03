@@ -551,6 +551,62 @@ class TestSimLoop(unittest.TestCase):
         with self.assertRaises(AttributeError):
             getattr(ohho.train, "non_existent_export_symbol")
 
+    def test_load_act_checkpoint_enforces_weights_only(self):
+        """OHH-86: load_act_checkpoint must deserialize policy.pt with weights_only=True."""
+        import ohho.train.act as act_module
+        from ohho.train.act import load_act_checkpoint
+
+        with tempfile.TemporaryDirectory() as tmp:
+            ckpt_dir = Path(tmp) / "act_ckpt"
+            ckpt_dir.mkdir()
+            with open(ckpt_dir / "config.json", "w", encoding="utf-8") as f:
+                json.dump({"policy": "act", "state_dim": 9, "action_dim": 9}, f)
+            (ckpt_dir / "policy.pt").write_bytes(b"dummy_weights")
+
+            mock_torch = unittest.mock.MagicMock()
+            mock_model = unittest.mock.MagicMock()
+            mock_policy_cls = unittest.mock.MagicMock(return_value=mock_model)
+
+            with (
+                patch.object(act_module, "TORCH_AVAILABLE", True),
+                patch.object(act_module, "torch", mock_torch, create=True),
+                patch.object(act_module, "TinyACTPolicy", mock_policy_cls),
+            ):
+                model, config = load_act_checkpoint(str(ckpt_dir), device="cpu")
+                mock_torch.load.assert_called_once()
+                _args, kwargs = mock_torch.load.call_args
+                self.assertEqual(kwargs.get("weights_only"), True)
+                self.assertEqual(model, mock_model)
+
+    @unittest.skipUnless(_has_torch(), "torch not installed — [train] extra")
+    def test_act_checkpoint_save_and_load_roundtrip_weights_only(self):
+        """OHH-86: saved TinyACTPolicy state_dict loads safely with weights_only=True."""
+        import torch
+        from ohho.train.act import TinyACTPolicy, load_act_checkpoint
+
+        with tempfile.TemporaryDirectory() as tmp:
+            ckpt_dir = Path(tmp) / "real_ckpt"
+            ckpt_dir.mkdir()
+            model = TinyACTPolicy(state_dim=9, action_dim=9, chunk_size=5, d_model=32)
+            torch.save(model.state_dict(), ckpt_dir / "policy.pt")
+            with open(ckpt_dir / "config.json", "w", encoding="utf-8") as f:
+                json.dump(
+                    {
+                        "policy": "act",
+                        "state_dim": 9,
+                        "action_dim": 9,
+                        "chunk_size": 5,
+                        "d_model": 32,
+                    },
+                    f,
+                )
+
+            loaded_model, loaded_config = load_act_checkpoint(
+                str(ckpt_dir), device="cpu"
+            )
+            self.assertIsNotNone(loaded_model)
+            self.assertEqual(loaded_config["chunk_size"], 5)
+
 
 if __name__ == "__main__":
     unittest.main()

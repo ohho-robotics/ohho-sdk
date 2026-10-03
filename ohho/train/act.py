@@ -346,7 +346,7 @@ def load_act_checkpoint(
         kl_weight=config.get("kl_weight", 10.0),
     )
     dev = torch.device(device)
-    state_dict = torch.load(pt_file, map_location=dev)
+    state_dict = torch.load(pt_file, map_location=dev, weights_only=True)
     model.load_state_dict(state_dict)
     model.to(dev)
     model.eval()
