@@ -51,6 +51,10 @@ class FakeFeetechBus:
     def read(self, key: str) -> dict:
         if key == "Present_Position":
             return dict(self.present)
+        if key == "Present_Voltage":
+            return {n: 74 for n in _OMNIBOT_JOINTS}
+        if key == "Present_Temperature":
+            return {n: 29 for n in _OMNIBOT_JOINTS}
         return {}
 
     def write(self, key: str, values: dict) -> None:
@@ -154,6 +158,21 @@ class TestFeetechAdapter(unittest.TestCase):
         tp = FeetechTransport(get_spec("omnibot"), "/dev/null")
         with self.assertRaises(AdapterUnavailable):
             tp.connect()
+
+    def test_read_servo_diagnostics(self):
+        bus = FakeFeetechBus()
+        tp = _transport(bus)
+        tp.connect()
+        try:
+            diags = tp.read_servo_diagnostics()
+            self.assertEqual(len(diags), 6)
+            for d in diags:
+                self.assertIn("id", d)
+                self.assertEqual(d["voltage"], 7.4)
+                self.assertEqual(d["temperature"], 29.0)
+                self.assertTrue(d["online"])
+        finally:
+            tp.disconnect()
 
 
 if __name__ == "__main__":

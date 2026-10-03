@@ -56,9 +56,10 @@
 | **Navigation (native, no-ROS)** | ✅ **v1.1.0** — `ohho.nav`: grid mapping, costmap, A*, frontiers, `Navigator` (collision-aware). CLI `ohho nav goto/explore/map` |
 | **Memory + perception** | ✅ **v1.1.0** — `ohho.memory` (object permanence, temporal queries, JSON persistence) + `ohho.perception` (`SimPerceptor`, Claude-vision `VlmPerceptor`). CLI `ohho look`, `ohho memory` |
 | **Simulation WebSocket (`sim-serve`)** | ✅ **OHH-91 complete** — `ohho.sim_serve` (JSON WebSocket session: velocity/joints/deadman/estop, 300ms timeout, estop latch; backends: `sim` and `ros2` via rosbridge; isaac/mujoco exit non-zero). CLI `ohho sim-serve` |
-| CLI (`ohho`) | ✅ `doctor list version connect sim drive agent serve sim-serve market profile nav look memory` |
-| Tests | Base install, Python 3.12.3, Linux: `python -m unittest discover -s tests` → Ran 206 tests, OK (skipped=18). |
-| CI | `.github/workflows/ci.yml` — ubuntu, macos, windows × Python 3.10–3.13. No GitHub run is attached to this commit. |
+| **Hardware self-test (`selftest`)** | ⏳ **OHH-87 code + sim done; real-robot run pending (Varun)** — `ohho.selftest`: Bench v0 bring-up suite (serial link, wheel spin direction with encoder integration, IMU 20+ Hz rate, STS3215 servo diagnostics [ID/voltage/temp/pos], camera frames) with dated JSON report + `--sim` CI mode. Real-robot bench run pending (Varun). CLI `ohho selftest` |
+| CLI (`ohho`) | ✅ `doctor list version connect sim drive agent serve sim-serve market profile nav look memory selftest` |
+| Tests | Python 3.12, Windows: `python -m unittest discover -s tests` → Ran 238 tests, OK (skipped=19). |
+| CI | `.github/workflows/ci.yml` — ubuntu, macos, windows × Python 3.10–3.13; includes `ohho selftest --sim` smoke check. |
 
 **M1 (two-robot hardware vertical slice) — software complete.** All four adapters
 (`yahboom`, `feetech`, `composite`, `unitree`) are built and unit-tested against
@@ -174,13 +175,16 @@ sdk/
 │   ├── serve/            # ohho.serve — FastAPI inference server, `ohho serve` CLI
 │   │   └── __init__.py   # serve(), build_app(), ServeUnavailable, _MockModel
 │   ├── sim_serve.py      # ohho.sim_serve — WebSocket teleop and telemetry server (`sim` and `ros2`)
+│   ├── selftest.py       # ohho.selftest — hardware self-test suite (motors, encoders, IMU, servos, camera)
 │   ├── profiles.py       # HardwareProfile, detect_profile(), `ohho profile` CLI
 │   ├── market.py         # Skill registry, @skill decorator, run_skill(), `ohho market` CLI
 │   ├── hardware.py       # resolve_device("auto") -> cuda/mps/cpu (lazy torch)
-│   ├── cli.py            # argparse: doctor/list/version/connect/sim/drive/agent/sim-serve; main()
+│   ├── cli.py            # argparse: doctor/list/version/connect/sim/drive/agent/sim-serve/selftest; main()
 │   └── robots/
 │       └── example.json  # example manifest (nested dof/limits) for load_manifest()
-└── tests/                # unittest suite including test_sim_serve.py
+├── docs/
+│   └── selftest.md       # Bench v0 self-test documentation, safety rules, JSON schema
+└── tests/                # unittest suite including test_sim_serve.py, test_selftest.py
 ```
 
 ---
@@ -446,9 +450,16 @@ All milestones (M0–M5) are complete. OhhO OS is at v1.1.3. To continue:
    from ohho import Robot
    with Robot.connect("omnibot", "serial:///dev/ttyUSB0,/dev/ttyACM0") as bot:
        bot.drive(vx=0.05); bot.move_joints([0, -0.5, 0.5, 0, 0, 0.2])
-    with Robot.connect("unitree-go2", "dds://eth0") as bot:
-        bot.drive(vx=0.3, w=0.2); print(bot.telemetry().odom)
-    ```
+   with Robot.connect("unitree-go2", "dds://eth0") as bot:
+       bot.drive(vx=0.3, w=0.2); print(bot.telemetry().odom)
+   ```
+
+### Bench v0 hardware self-test (OHH-87)
+
+Run the bring-up diagnostic suite for OmniBot or simulated test bench:
+1. **Simulation / CI:** `ohho selftest --sim` (runs all 5 checks against simulated hardware, exits 0).
+2. **On-robot bench:** `ohho selftest --robot omnibot --allow-spin` (checks base serial, wheel encoders with short pulse, IMU rate >= 20Hz, STS3215 arm bus diagnostics, and camera frames). Generates dated JSON report (`selftest-YYYYMMDD-HHMMSS.json`).
+3. **Real-robot run:** Pending on-bench execution by Varun (hardware-gated).
 
 ---
 

@@ -70,6 +70,12 @@ def packet_motion(
     return build_packet(FUNC_MOTION, payload)
 
 
+def packet_motor(fl: int, fr: int, rl: int, rr: int) -> bytes:
+    """Direct four-wheel velocities / PWM (int16 each: fl, fr, rl, rr)."""
+    payload = struct.pack("<hhhh", int(fl), int(fr), int(rl), int(rr))
+    return build_packet(FUNC_MOTOR, payload)
+
+
 # ── RX ─────────────────────────────────────────────────────────────────────────
 @dataclass
 class VelocityPacket:
