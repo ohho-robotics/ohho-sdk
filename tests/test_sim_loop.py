@@ -443,6 +443,41 @@ class TestSimLoop(unittest.TestCase):
             self.assertEqual(kwargs["train_steps"], 75)
             self.assertTrue(kwargs["mock"])
 
+    @unittest.skipUnless(_has_fastapi(), "fastapi not installed — [serve] extra")
+    def test_serve_act_forwards_device(self):
+        """OHH-86: build_app and /load_model must forward device to ACTModel."""
+        from fastapi.testclient import TestClient
+        from ohho.serve import build_app
+
+        with tempfile.TemporaryDirectory() as tmp:
+            ckpt_dir = Path(tmp) / "act_ckpt"
+            ckpt_dir.mkdir()
+            with open(ckpt_dir / "config.json", "w", encoding="utf-8") as f:
+                json.dump({"policy": "act", "state_dim": 9, "action_dim": 9}, f)
+
+            with patch("ohho.serve.resolve_device", return_value="cuda:0"):
+                # Test auto_load path forwards device
+                app = build_app(
+                    model_class="act",
+                    model_path=str(ckpt_dir),
+                    device="cuda:0",
+                    auto_load=True,
+                )
+                self.assertIsNotNone(app.state.model)
+                self.assertEqual(app.state.model.device, "cuda:0")
+
+                # Test /load_model path forwards device
+                app2 = build_app(
+                    model_class="act",
+                    device="cuda:0",
+                    auto_load=False,
+                )
+                client = TestClient(app2)
+                r = client.post("/load_model", params={"model_path": str(ckpt_dir)})
+                self.assertEqual(r.status_code, 200)
+                self.assertIsNotNone(app2.state.model)
+                self.assertEqual(app2.state.model.device, "cuda:0")
+
 
 if __name__ == "__main__":
     unittest.main()

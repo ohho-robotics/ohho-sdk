@@ -79,6 +79,7 @@ def build_app(
     dev = resolve_device(device)
     _model: Any = None
     _model_path = model_path
+    app.state.model = None
 
     def _check_auth(x_api_key: Optional[str] = Header(None)):
         if api_key and x_api_key != api_key:
@@ -101,8 +102,15 @@ def build_app(
             _model.load_model(model_path)
     elif auto_load and model_path:
         cls = _resolve_model_class(model_class)
-        _model = cls()
-        _model.load_model(model_path)
+        try:
+            _model = cls(device=dev)
+        except TypeError:
+            _model = cls()
+        try:
+            _model.load_model(model_path, device=dev)
+        except TypeError:
+            _model.load_model(model_path)
+    app.state.model = _model
 
     @app.get("/health")
     async def health():
@@ -135,8 +143,15 @@ def build_app(
             _model.load_model(path)
         else:
             cls = _resolve_model_class(model_class)
-            _model = cls()
-            _model.load_model(path)
+            try:
+                _model = cls(device=dev)
+            except TypeError:
+                _model = cls()
+            try:
+                _model.load_model(path, device=dev)
+            except TypeError:
+                _model.load_model(path)
+        app.state.model = _model
         return {"status": "loaded", "model": type(_model).__name__}
 
     @app.post("/predict", response_model=InferenceResponse)

@@ -16,6 +16,8 @@ class ACTModel:
         self.config: Dict[str, Any] = {}
 
     def load_model(self, model_path: str, **kwargs: Any) -> None:
+        if "device" in kwargs and kwargs["device"]:
+            self.device = kwargs["device"]
         p = Path(model_path).expanduser()
         config_file = p / "config.json"
         if not config_file.exists() and (p.parent / "config.json").exists():
