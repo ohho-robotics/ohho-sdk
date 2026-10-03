@@ -478,6 +478,57 @@ class TestSimLoop(unittest.TestCase):
                 self.assertIsNotNone(app2.state.model)
                 self.assertEqual(app2.state.model.device, "cuda:0")
 
+    @unittest.skipUnless(_has_fastapi(), "fastapi not installed — [serve] extra")
+    def test_serve_act_auto_detect_positive_marker_only(self):
+        """OHH-86: only auto-detect ACT on positive ACT marker, not generic HF config.json."""
+        from fastapi.testclient import TestClient
+        from ohho.serve import _is_act_checkpoint, build_app
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+
+            # 1. ACT checkpoint directory with positive marker
+            act_dir = tmp_path / "act_checkpoint"
+            act_dir.mkdir()
+            with open(act_dir / "config.json", "w", encoding="utf-8") as f:
+                json.dump({"policy": "act", "state_dim": 9, "action_dim": 9}, f)
+            (act_dir / "policy.pt").touch()
+
+            self.assertTrue(_is_act_checkpoint(str(act_dir)))
+            self.assertTrue(_is_act_checkpoint(str(act_dir / "policy.pt")))
+
+            app_act = build_app(model_path=str(act_dir), auto_load=True)
+            self.assertEqual(type(app_act.state.model).__name__, "ACTModel")
+
+            # 2. Generic Hugging Face checkpoint directory with config.json
+            hf_dir = tmp_path / "hf_checkpoint"
+            hf_dir.mkdir()
+            with open(hf_dir / "config.json", "w", encoding="utf-8") as f:
+                json.dump(
+                    {
+                        "model_type": "openvla",
+                        "architectures": ["OpenVLAForActionPrediction"],
+                    },
+                    f,
+                )
+            (hf_dir / "model.safetensors").touch()
+
+            self.assertFalse(_is_act_checkpoint(str(hf_dir)))
+            self.assertFalse(_is_act_checkpoint("openvla/openvla-7b"))
+
+            # When loading HF checkpoint without model_class, it must NOT resolve to ACTModel
+            with patch("ohho.serve._resolve_model_class") as mock_resolve:
+                mock_cls = unittest.mock.MagicMock()
+                mock_resolve.return_value = mock_cls
+                build_app(model_path=str(hf_dir), auto_load=True)
+                mock_resolve.assert_called_with("")
+                self.assertNotEqual(mock_resolve.call_args[0][0], "act")
+
+                client = TestClient(build_app(auto_load=False))
+                client.post("/load_model", params={"model_path": str(hf_dir)})
+                # /load_model also retains default model_class ("") instead of "act"
+                self.assertEqual(mock_resolve.call_args[0][0], "")
+
 
 if __name__ == "__main__":
     unittest.main()

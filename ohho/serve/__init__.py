@@ -86,14 +86,7 @@ def build_app(
             raise HTTPException(status_code=401, detail="invalid API key")
 
     if not model_class and model_path:
-        from pathlib import Path
-
-        p = Path(model_path).expanduser()
-        if (
-            (p / "policy.pt").exists()
-            or (p / "config.json").exists()
-            or str(model_path).endswith(".pt")
-        ):
+        if _is_act_checkpoint(model_path):
             model_class = "act"
 
     if mock_model:
@@ -128,14 +121,7 @@ def build_app(
             raise HTTPException(400, "model_path required")
         _model_path = path
         if not model_class:
-            from pathlib import Path
-
-            p = Path(path).expanduser()
-            if (
-                (p / "policy.pt").exists()
-                or (p / "config.json").exists()
-                or str(path).endswith(".pt")
-            ):
+            if _is_act_checkpoint(path):
                 model_class = "act"
 
         if mock_model:
@@ -213,6 +199,49 @@ def serve(
         mock_model=mock,
     )
     uvicorn.run(app, host=host, port=port)
+
+
+def _is_act_checkpoint(path: str) -> bool:
+    """Check if a checkpoint directory or file positively identifies as an OhhO ACT policy.
+
+    A valid ACT checkpoint has a config.json (or checkpoint.json) containing a
+    positive ACT marker ('policy': 'act' or 'model_family': 'act'). Plain Hugging
+    Face checkpoints containing generic config.json must NOT be treated as ACT.
+    """
+    if not path:
+        return False
+    try:
+        import json
+        from pathlib import Path
+
+        p = Path(path).expanduser()
+        if not p.exists():
+            return False
+
+        config_file = p / "config.json" if p.is_dir() else p.parent / "config.json"
+        if not config_file.exists():
+            ckpt_file = (
+                p / "checkpoint.json" if p.is_dir() else p.parent / "checkpoint.json"
+            )
+            if ckpt_file.exists():
+                config_file = ckpt_file
+
+        if config_file.exists():
+            with open(config_file, encoding="utf-8") as f:
+                data = json.load(f)
+            if isinstance(data, dict):
+                policy_name = str(data.get("policy", "")).lower()
+                model_family = str(data.get("model_family", "")).lower()
+                model_type = str(data.get("model_type", "")).lower()
+                if (
+                    policy_name == "act"
+                    or model_family == "act"
+                    or model_type in ("act", "tiny_act")
+                ):
+                    return True
+    except Exception:
+        return False
+    return False
 
 
 def _resolve_model_class(dotted: str):
