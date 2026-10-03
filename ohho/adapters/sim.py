@@ -69,6 +69,18 @@ class SimTransport(BaseTransport):
         self._joint_targets: dict[str, float] = dict(self._joints)
         self._joint_rate = joint_rate  # rad/s
         self._battery = 1.0
+        self._wheel_encoders: dict[str, int] = {
+            "front_left": 0,
+            "front_right": 0,
+            "rear_left": 0,
+            "rear_right": 0,
+        }
+        self._wheel_speeds: dict[str, float] = {
+            "front_left": 0.0,
+            "front_right": 0.0,
+            "rear_left": 0.0,
+            "rear_right": 0.0,
+        }
         self._estopped = False
         self._state = ConnectionState.IDLE
         self._connected_since: float | None = None
@@ -101,6 +113,24 @@ class SimTransport(BaseTransport):
         if self._estopped:
             return
         self._cmd = vel
+
+    def send_motor(self, fl: int, fr: int, rl: int, rr: int) -> None:
+        """Command raw 4-wheel velocities (int16 each) in sim."""
+        if self._estopped:
+            return
+        self._wheel_speeds = {
+            "front_left": float(fl),
+            "front_right": float(fr),
+            "rear_left": float(rl),
+            "rear_right": float(rr),
+        }
+        for name, val in [
+            ("front_left", fl),
+            ("front_right", fr),
+            ("rear_left", rl),
+            ("rear_right", rr),
+        ]:
+            self._wheel_encoders[name] += int(val * 2.5)
 
     def send_joint_command(self, name: str, position: float) -> None:
         if name in self._joint_targets:
@@ -157,6 +187,38 @@ class SimTransport(BaseTransport):
     def read(self) -> Telemetry:
         return self._snapshot()
 
+    def get_wheel_encoders(self) -> dict[str, int]:
+        return dict(self._wheel_encoders)
+
+    def get_imu_rate(self) -> float:
+        return 20.0
+
+    def read_servo_diagnostics(self) -> list[dict]:
+        out = []
+        joints = self.spec.joint_names or (
+            "arm_shoulder_pan",
+            "arm_shoulder_lift",
+            "arm_elbow_flex",
+            "arm_wrist_flex",
+            "arm_wrist_roll",
+            "arm_gripper",
+        )
+        temps = [29.2, 30.1, 28.8, 27.9, 28.4, 27.5]
+        for idx, name in enumerate(joints, start=1):
+            pos = self._joints.get(name, 0.0)
+            temp = temps[(idx - 1) % len(temps)]
+            out.append(
+                {
+                    "id": idx,
+                    "name": name,
+                    "voltage": 7.4,
+                    "temperature": temp,
+                    "position": round(pos, 4),
+                    "online": True,
+                }
+            )
+        return out
+
     def _snapshot(self) -> Telemetry:
         joints = [JointReading(name=n, position=p) for n, p in self._joints.items()]
         odom = Odometry(
@@ -168,7 +230,17 @@ class SimTransport(BaseTransport):
             self._odom.omega,
         )
         scan = self._ray_cast() if self._objects else None
-        return Telemetry(odom=odom, joints=joints, battery=self._battery, scan=scan)
+        custom = {
+            "wheel_encoders": dict(self._wheel_encoders),
+            "imu_rate": self.get_imu_rate(),
+        }
+        return Telemetry(
+            odom=odom,
+            joints=joints,
+            battery=self._battery,
+            scan=scan,
+            custom=custom,
+        )
 
     # ── physics ───────────────────────────────────────────────────────────────
     def step(self, dt: float) -> Telemetry:
@@ -181,6 +253,17 @@ class SimTransport(BaseTransport):
         self._odom.y += (vx * s + vy * c) * dt
         self._odom.theta += w * dt
         self._odom.vx, self._odom.vy, self._odom.omega = vx, vy, w
+
+        # integrate wheel encoders from motion
+        geom = 0.1075 * w
+        v_fl = vx - vy - geom
+        v_fr = vx + vy + geom
+        v_rl = vx + vy - geom
+        v_rr = vx - vy + geom
+        self._wheel_encoders["front_left"] += int(v_fl * dt * 2000)
+        self._wheel_encoders["front_right"] += int(v_fr * dt * 2000)
+        self._wheel_encoders["rear_left"] += int(v_rl * dt * 2000)
+        self._wheel_encoders["rear_right"] += int(v_rr * dt * 2000)
 
         # solid obstacles: project the pose back to the surface (slide along it)
         for ob in self._objects:

@@ -235,6 +235,52 @@ class FeetechTransport(BaseTransport):
             out[name] = (tick - HOME_TICKS) / TICKS_PER_RAD
         return out
 
+    def read_servo_diagnostics(self) -> list[dict]:
+        """Read ID, voltage, temperature, and position for all STS3215 servos."""
+        out: list[dict] = []
+        positions: dict[str, int] = {}
+        voltages: dict[str, int | float] = {}
+        temperatures: dict[str, int | float] = {}
+        if self._bus is not None:
+            read = getattr(self._bus, "read", None)
+            if callable(read):
+                try:
+                    positions = read("Present_Position") or {}
+                except Exception:
+                    pass
+                try:
+                    voltages = read("Present_Voltage") or {}
+                except Exception:
+                    pass
+                try:
+                    temperatures = read("Present_Temperature") or {}
+                except Exception:
+                    pass
+
+        for name, mid in zip(self._joint_names, self._motor_ids):
+            tick = positions.get(name, HOME_TICKS)
+            pos_rad = (
+                (tick - HOME_TICKS) / TICKS_PER_RAD
+                if name in positions
+                else self._positions.get(name, 0.0)
+            )
+            raw_v = voltages.get(name, 74)
+            # STS3215 Present_Voltage is typically in 0.1V (e.g. 74 is 7.4V)
+            volts = raw_v / 10.0 if raw_v > 20 else float(raw_v)
+            temp_c = float(temperatures.get(name, 28))
+            online = self._bus is not None and (name in positions or bool(positions))
+            out.append(
+                {
+                    "id": mid,
+                    "name": name,
+                    "voltage": round(volts, 2),
+                    "temperature": round(temp_c, 1),
+                    "position": round(pos_rad, 4),
+                    "online": online,
+                }
+            )
+        return out
+
     def _poll_once(self) -> None:
         self._positions = self._read_positions()
         self._emit_telemetry(self._snapshot())

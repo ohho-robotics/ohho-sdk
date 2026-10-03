@@ -5,7 +5,10 @@ from ohho.adapters.yahboom import YahboomTransport
 from ohho.registry import get_spec
 from ohho.schema import Velocity
 
-from test_yahboom_proto import make_rx_velocity
+try:
+    from test_yahboom_proto import make_rx_velocity
+except ImportError:
+    from tests.test_yahboom_proto import make_rx_velocity
 
 
 class FakeSerial:
@@ -89,6 +92,27 @@ class TestYahboomAdapter(unittest.TestCase):
         tp.on_telemetry(seen.append)
         tp._ingest(make_rx_velocity(0.1, 0.0, 0.0))
         self.assertEqual(len(seen), 1)
+
+    def test_send_motor_writes_packet(self):
+        fs = FakeSerial()
+        tp = _tp(fs)
+        tp.connect()
+        try:
+            fs.written.clear()
+            tp.send_motor(50, -50, 50, -50)
+            self.assertEqual(bytes(fs.written), proto.packet_motor(50, -50, 50, -50))
+        finally:
+            tp.disconnect()
+
+    def test_wheel_encoders_integrated(self):
+        fs = FakeSerial()
+        tp = _tp(fs)
+        tp._ingest(make_rx_velocity(0.2, 0.0, 0.0))
+        tp._ingest(make_rx_velocity(0.2, 0.0, 0.0))
+        encs = tp.get_wheel_encoders()
+        for w in ["front_left", "front_right", "rear_left", "rear_right"]:
+            self.assertIn(w, encs)
+            self.assertGreaterEqual(encs[w], 0)
 
 
 if __name__ == "__main__":

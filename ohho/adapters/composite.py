@@ -66,9 +66,22 @@ class CompositeTransport(BaseTransport):
             connected_since=bs.connected_since,
         )
 
+    @property
+    def base(self) -> Transport:
+        return self._base
+
+    @property
+    def arm(self) -> Transport:
+        return self._arm
+
     # ── commands ──────────────────────────────────────────────────────────────
     def send_velocity(self, vel: Velocity) -> None:
         self._base.send_velocity(vel)
+
+    def send_motor(self, fl: int, fr: int, rl: int, rr: int) -> None:
+        send_m = getattr(self._base, "send_motor", None)
+        if callable(send_m):
+            send_m(fl, fr, rl, rr)
 
     def send_joint_command(self, name: str, position: float) -> None:
         self._arm.send_joint_command(name, position)
@@ -84,6 +97,24 @@ class CompositeTransport(BaseTransport):
     # ── telemetry ─────────────────────────────────────────────────────────────
     def read(self) -> Telemetry:
         return self._merge(self._base.read(), self._arm.read())
+
+    def get_wheel_encoders(self) -> dict[str, int]:
+        get_enc = getattr(self._base, "get_wheel_encoders", None)
+        if callable(get_enc):
+            return get_enc()
+        return {}
+
+    def get_imu_rate(self) -> float:
+        get_imu = getattr(self._base, "get_imu_rate", None)
+        if callable(get_imu):
+            return get_imu()
+        return 0.0
+
+    def read_servo_diagnostics(self) -> list[dict]:
+        read_diag = getattr(self._arm, "read_servo_diagnostics", None)
+        if callable(read_diag):
+            return read_diag()
+        return []
 
     def _merge(self, base_t: Telemetry, arm_t: Telemetry) -> Telemetry:
         joints = list(arm_t.joints)

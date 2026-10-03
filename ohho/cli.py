@@ -397,6 +397,45 @@ def _cmd_memory(args) -> int:
     return 1
 
 
+def _cmd_selftest(args) -> int:
+    from .selftest import default_report_path, format_report_text, run_selftest
+
+    allow_spin = getattr(args, "allow_spin", False)
+    if not args.sim and not allow_spin:
+        if sys.stdin.isatty():
+            try:
+                ans = (
+                    input(
+                        "Allow wheel spin test on bench? (wheels will spin briefly at low speed) [y/N]: "
+                    )
+                    .strip()
+                    .lower()
+                )
+                if ans in ("y", "yes"):
+                    allow_spin = True
+            except (EOFError, KeyboardInterrupt):
+                allow_spin = False
+
+    out_path = args.out or default_report_path()
+    try:
+        report = run_selftest(
+            robot=args.robot,
+            sim=args.sim,
+            allow_spin=allow_spin,
+            out_path=out_path,
+            base_port=getattr(args, "base_port", ""),
+            arm_port=getattr(args, "arm_port", ""),
+            camera_idx=getattr(args, "camera_idx", 0),
+        )
+    except Exception as e:
+        print(f"error running selftest: {e}", file=sys.stderr)
+        return 2
+
+    print(format_report_text(report))
+    print(f"Report saved to: {out_path}")
+    return 1 if report.overall_status == "FAIL" else 0
+
+
 def _add_robot_args(
     sp: argparse.ArgumentParser, transport_default: Optional[str] = None
 ) -> None:
@@ -542,6 +581,38 @@ def build_parser() -> argparse.ArgumentParser:
         "detect", help="auto-detect the current machine's profile"
     ).set_defaults(action="detect")
     pf.set_defaults(func=_cmd_profile)
+
+    st = sub.add_parser("selftest", help="hardware bring-up self-test with JSON report")
+    st.add_argument(
+        "--robot", default="omnibot", help="robot to self-test (default: omnibot)"
+    )
+    st.add_argument(
+        "--sim",
+        action="store_true",
+        help="run against simulated hardware (safe for CI)",
+    )
+    st.add_argument(
+        "--allow-spin",
+        "--spin-wheels",
+        action="store_true",
+        dest="allow_spin",
+        help="allow bench wheel spin check (low-speed, short pulse)",
+    )
+    st.add_argument(
+        "--out",
+        default="",
+        help="custom path for JSON report (default: selftest-YYYYMMDD-HHMMSS.json)",
+    )
+    st.add_argument(
+        "--base-port", default="", help="serial port for base (e.g. /dev/ttyUSB0)"
+    )
+    st.add_argument(
+        "--arm-port", default="", help="serial port for arm bus (e.g. /dev/ttyACM0)"
+    )
+    st.add_argument(
+        "--camera-idx", type=int, default=0, help="camera device index (default: 0)"
+    )
+    st.set_defaults(func=_cmd_selftest)
 
     return p
 
