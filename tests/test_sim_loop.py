@@ -404,6 +404,45 @@ class TestSimLoop(unittest.TestCase):
             )
             self.assertEqual(rc, 0)
 
+    def test_finetune_act_train_steps_forwarding(self):
+        """OHH-86: finetune(policy='act') must forward train_steps without TypeError."""
+        from ohho.train import finetune
+
+        # Test fallback path when _lerobot_train raises ImportError
+        with (
+            patch("ohho.train._lerobot_train", side_effect=ImportError("no lerobot")),
+            patch("ohho.train.act.train_act", return_value="dummy_ckpt") as mock_act,
+        ):
+            res = finetune(
+                "fake_dataset",
+                policy="act",
+                train_steps=42,
+                mock=False,
+                extra_arg="custom",
+            )
+            self.assertEqual(res, "dummy_ckpt")
+            mock_act.assert_called_once()
+            _, kwargs = mock_act.call_args
+            self.assertEqual(kwargs["train_steps"], 42)
+            self.assertEqual(kwargs["extra_arg"], "custom")
+            self.assertFalse(kwargs["mock"])
+
+        # Test default train_steps calculation (num_epochs * 2) in fallback
+        with (
+            patch("ohho.train._lerobot_train", side_effect=ImportError("no lerobot")),
+            patch("ohho.train.act.train_act", return_value="dummy_ckpt") as mock_act,
+        ):
+            finetune("fake_dataset", policy="act", num_epochs=15, mock=False)
+            _, kwargs = mock_act.call_args
+            self.assertEqual(kwargs["train_steps"], 30)
+
+        # Test mock=True path with explicit train_steps
+        with patch("ohho.train.act.train_act", return_value="dummy_ckpt") as mock_act:
+            finetune("fake_dataset", policy="act", train_steps=75, mock=True)
+            _, kwargs = mock_act.call_args
+            self.assertEqual(kwargs["train_steps"], 75)
+            self.assertTrue(kwargs["mock"])
+
 
 if __name__ == "__main__":
     unittest.main()

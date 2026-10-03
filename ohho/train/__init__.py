@@ -66,12 +66,17 @@ def finetune(
         if policy == "act":
             from .act import train_act
 
+            act_kwargs = dict(kwargs)
+            act_train_steps = act_kwargs.pop("train_steps", num_epochs * 2)
             return train_act(
                 dataset=dataset,
                 output_dir=str(out),
                 device=dev,
+                train_steps=act_train_steps,
+                batch_size=batch_size,
+                lr=lr,
                 mock=True,
-                **kwargs,
+                **act_kwargs,
             )
         return _mock_train(dataset, policy, dev, out)
 
@@ -91,15 +96,17 @@ def finetune(
         if policy == "act":
             from .act import train_act
 
+            act_kwargs = dict(kwargs)
+            act_train_steps = act_kwargs.pop("train_steps", num_epochs * 2)
             return train_act(
                 dataset=dataset,
                 output_dir=str(out),
                 device=dev,
-                train_steps=kwargs.get("train_steps", num_epochs * 2),
+                train_steps=act_train_steps,
                 batch_size=batch_size,
                 lr=lr,
                 mock=False,
-                **kwargs,
+                **act_kwargs,
             )
         raise TrainUnavailable(
             f"Training policy '{policy}' needs torch + lerobot: "
