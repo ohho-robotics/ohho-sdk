@@ -180,6 +180,22 @@ def check_wheel_spin_encoders(
             duration_s=dur,
         )
 
+    if not sim:
+        st = transport.status()
+        if st.state != ConnectionState.CONNECTED:
+            dur = time.monotonic() - start_t
+            return CheckResult(
+                name="wheel_spin_encoders",
+                status="SKIP",
+                reason="Wheel spin check skipped: transport not connected",
+                measurements={
+                    "safety_locked": False,
+                    "transport_connected": False,
+                    "state": st.state.value,
+                },
+                duration_s=dur,
+            )
+
     # In sim, or hardware when allow_spin is True
     wheel_results: dict[str, Any] = {}
     failed_wheels: list[str] = []

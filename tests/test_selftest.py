@@ -59,12 +59,29 @@ class TestSelfTestUnitChecks(unittest.TestCase):
             state=ConnectionState.DISCONNECTED,
             label="Offline",
         )
-        with patch("serial.Serial"):
+        mock_serial = MagicMock()
+        with patch.dict("sys.modules", {"serial": mock_serial}):
             res = check_serial_link(
                 fake_tp, sim=False, base_port="/dev/nonexistent_port_123"
             )
             self.assertEqual(res.status, "SKIP")
             self.assertIn("not connected", res.reason)
+
+    def test_check_serial_link_hardware_connected(self):
+        fake_tp = MagicMock()
+        fake_tp.protocol = "serial"
+        fake_tp.port = "/dev/ttyUSB0"
+        fake_tp.status.return_value = TransportStatus(
+            protocol="serial",
+            state=ConnectionState.CONNECTED,
+            label="Online",
+            latency_ms=1.5,
+        )
+        mock_serial = MagicMock()
+        with patch.dict("sys.modules", {"serial": mock_serial}):
+            res = check_serial_link(fake_tp, sim=False, base_port="/dev/ttyUSB0")
+            self.assertEqual(res.status, "PASS")
+            self.assertIn("connected", res.reason)
 
     # ── Check 2: Wheel spin & encoders ────────────────────────────────────────
 
@@ -74,6 +91,16 @@ class TestSelfTestUnitChecks(unittest.TestCase):
         self.assertEqual(res.status, "SKIP")
         self.assertIn("safety lock", res.reason.lower())
         self.assertTrue(res.measurements.get("safety_locked"))
+
+    def test_check_wheel_spin_hardware_disconnected_skip(self):
+        fake_tp = MagicMock()
+        fake_tp.status.return_value = TransportStatus(
+            protocol="serial",
+            state=ConnectionState.DISCONNECTED,
+        )
+        res = check_wheel_spin_encoders(fake_tp, sim=False, allow_spin=True)
+        self.assertEqual(res.status, "SKIP")
+        self.assertIn("not connected", res.reason.lower())
 
     def test_check_wheel_spin_sim_pass(self):
         res = check_wheel_spin_encoders(self.sim_tp, sim=True)
@@ -378,6 +405,15 @@ class TestSelfTestReportAndRunner(unittest.TestCase):
                 )
                 code = main(["selftest", "--sim", "--out", out_file])
                 self.assertEqual(code, 1)
+
+    def test_run_selftest_omnibot_hardware_no_pyserial(self):
+        with patch.dict("sys.modules", {"serial": None}):
+            report = run_selftest(robot="omnibot", sim=False, allow_spin=False)
+            self.assertEqual(report.robot, "omnibot")
+            self.assertEqual(report.mode, "hardware")
+            self.assertEqual(report.checks["serial_link"].status, "SKIP")
+            self.assertIn("pyserial", report.checks["serial_link"].reason)
+            self.assertNotEqual(report.overall_status, "FAIL")
 
 
 if __name__ == "__main__":
