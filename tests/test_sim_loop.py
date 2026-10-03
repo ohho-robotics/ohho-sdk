@@ -497,8 +497,18 @@ class TestSimLoop(unittest.TestCase):
             self.assertTrue(_is_act_checkpoint(str(act_dir)))
             self.assertTrue(_is_act_checkpoint(str(act_dir / "policy.pt")))
 
-            app_act = build_app(model_path=str(act_dir), auto_load=True)
-            self.assertEqual(type(app_act.state.model).__name__, "ACTModel")
+            from ohho.serve.act import ACTModel
+
+            with patch.object(ACTModel, "load_model") as mock_load:
+                app_act = build_app(model_path=str(act_dir), auto_load=True)
+                self.assertEqual(type(app_act.state.model).__name__, "ACTModel")
+                mock_load.assert_called_once()
+
+                client_act = TestClient(build_app(auto_load=False))
+                r = client_act.post("/load_model", params={"model_path": str(act_dir)})
+                self.assertEqual(r.status_code, 200)
+                self.assertEqual(r.json()["model"], "ACTModel")
+                self.assertEqual(mock_load.call_count, 2)
 
             # 2. Generic Hugging Face checkpoint directory with config.json
             hf_dir = tmp_path / "hf_checkpoint"
