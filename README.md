@@ -96,7 +96,7 @@ To run with custom parameters:
 python scripts/sim_loop.py --episodes 5 --steps-per-episode 20 --train-steps 200 --eval-steps 50 --output-dir ./sim_loop_output
 ```
 
-The nightly CI workflow (`.github/workflows/sim-loop.yml`) runs this command in under 20 minutes on CPU-only runners, verifies LeRobotDataset loading, and uploads the trained checkpoint artifact.
+The nightly CI workflow (`.github/workflows/sim-loop.yml`) is designed to run this pipeline on CPU-only runners, verify LeRobotDataset loading, and upload the trained checkpoint and dataset artifacts (first run pending).
 
 ## Simulation WebSocket Server (`sim-serve`)
 

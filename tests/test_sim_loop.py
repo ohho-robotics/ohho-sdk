@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
+import sys
 import tempfile
+import types
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from ohho.cli import main as cli_main
 from ohho.data.reader import DatasetReader
@@ -16,8 +20,21 @@ from ohho.sim_loop import (
     record_sim_episodes,
     run_sim_loop,
     validate_dataset,
+    validate_lerobot_dataset,
     validate_schema,
 )
+
+
+def _has_fastapi() -> bool:
+    return importlib.util.find_spec("fastapi") is not None
+
+
+def _has_torch() -> bool:
+    return importlib.util.find_spec("torch") is not None
+
+
+def _has_lerobot() -> bool:
+    return importlib.util.find_spec("lerobot") is not None
 
 
 class TestSimLoop(unittest.TestCase):
@@ -64,7 +81,7 @@ class TestSimLoop(unittest.TestCase):
             )
             self.assertTrue(validate_schema(dataset_dir))
 
-            val_info = validate_dataset(dataset_dir)
+            val_info = validate_dataset(dataset_dir, mock=True)
             self.assertTrue(val_info["schema_valid"])
             self.assertEqual(val_info["total_episodes"], 5)
             self.assertEqual(val_info["total_frames"], 50)
@@ -102,11 +119,12 @@ class TestSimLoop(unittest.TestCase):
         self.assertAlmostEqual(p95, 95.05, delta=1.5)
 
     def test_format_summary(self):
-        metrics = {
+        metrics_mock = {
             "episodes_recorded": 5,
             "total_frames": 100,
             "schema_valid": True,
             "lerobot_dataset_loaded": False,
+            "mock": True,
             "model_name": "Tiny ACT (Action Chunking Transformer)",
             "train_steps": 200,
             "initial_loss": 0.8421,
@@ -123,7 +141,7 @@ class TestSimLoop(unittest.TestCase):
 
         try:
             os.environ["GITHUB_STEP_SUMMARY"] = tmp_path
-            summary = format_summary(metrics)
+            summary = format_summary(metrics_mock)
 
             self.assertIn("OhhO OS Nightly Sim Loop Summary", summary)
             self.assertIn("Sim Episodes Recorded", summary)
@@ -133,6 +151,7 @@ class TestSimLoop(unittest.TestCase):
             self.assertIn("2.15 ms", summary)
             self.assertIn("4.50 ms", summary)
             self.assertIn("Train Loss Curve", summary)
+            self.assertIn("Skipped (mock mode)", summary)
 
             with open(tmp_path, encoding="utf-8") as f:
                 content = f.read()
@@ -142,6 +161,203 @@ class TestSimLoop(unittest.TestCase):
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
 
+        # Non-mock summary: when lerobot_dataset_loaded is False and mock is False, status is Fail
+        metrics_non_mock = dict(metrics_mock)
+        metrics_non_mock["mock"] = False
+        summary_fail = format_summary(metrics_non_mock)
+        self.assertIn("| **LeRobotDataset Loading** | Fail |", summary_fail)
+
+        # Pass case: when lerobot_dataset_loaded is True
+        metrics_pass = dict(metrics_mock)
+        metrics_pass["lerobot_dataset_loaded"] = True
+        summary_pass = format_summary(metrics_pass)
+        self.assertIn("| **LeRobotDataset Loading** | Pass |", summary_pass)
+
+    def test_validation_strictness_non_mock_lerobot_missing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            dataset_dir = os.path.join(tmp, "dataset")
+            record_sim_episodes(
+                robot_id="omnibot",
+                num_episodes=2,
+                steps_per_episode=5,
+                output_dir=dataset_dir,
+            )
+
+            with patch.dict(
+                sys.modules,
+                {
+                    "lerobot": None,
+                    "lerobot.datasets": None,
+                    "lerobot.datasets.lerobot_dataset": None,
+                    "lerobot.common.datasets.lerobot_dataset": None,
+                },
+            ):
+                # In non-mock mode, missing lerobot must raise RuntimeError
+                with self.assertRaises(RuntimeError) as cm:
+                    validate_lerobot_dataset(dataset_dir, mock=False)
+                self.assertIn("lerobot is not installed", str(cm.exception))
+
+                with self.assertRaises(RuntimeError) as cm_ds:
+                    validate_dataset(dataset_dir, mock=False)
+                self.assertIn("lerobot is not installed", str(cm_ds.exception))
+
+                # In mock mode, missing lerobot must return False without raising
+                self.assertFalse(validate_lerobot_dataset(dataset_dir, mock=True))
+                val_info = validate_dataset(dataset_dir, mock=True)
+                self.assertFalse(val_info["lerobot_dataset_loaded"])
+                self.assertTrue(val_info["schema_valid"])
+
+    def test_validation_strictness_non_mock_loader_raising(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            dataset_dir = os.path.join(tmp, "dataset")
+            record_sim_episodes(
+                robot_id="omnibot",
+                num_episodes=2,
+                steps_per_episode=5,
+                output_dir=dataset_dir,
+            )
+
+            class RaisingDataset:
+                def __init__(self, *args, **kwargs):
+                    raise ValueError("corrupted parquet data chunk")
+
+            fake_mod = types.ModuleType("lerobot.datasets.lerobot_dataset")
+            fake_mod.LeRobotDataset = RaisingDataset
+            fake_pkg = types.ModuleType("lerobot.datasets")
+            fake_pkg.LeRobotDataset = RaisingDataset
+
+            with patch.dict(
+                sys.modules,
+                {
+                    "lerobot": types.ModuleType("lerobot"),
+                    "lerobot.datasets": fake_pkg,
+                    "lerobot.datasets.lerobot_dataset": fake_mod,
+                    "lerobot.common.datasets.lerobot_dataset": fake_mod,
+                },
+            ):
+                # In non-mock mode, loader error must raise RuntimeError
+                with self.assertRaises(RuntimeError) as cm:
+                    validate_lerobot_dataset(dataset_dir, mock=False)
+                self.assertIn("corrupted parquet data chunk", str(cm.exception))
+
+                with self.assertRaises(RuntimeError) as cm_ds:
+                    validate_dataset(dataset_dir, mock=False)
+                self.assertIn("corrupted parquet data chunk", str(cm_ds.exception))
+
+                # In mock mode, loader error must return False without raising
+                self.assertFalse(validate_lerobot_dataset(dataset_dir, mock=True))
+                val_info = validate_dataset(dataset_dir, mock=True)
+                self.assertFalse(val_info["lerobot_dataset_loaded"])
+
+    def test_validation_strictness_non_mock_zero_frames(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            dataset_dir = os.path.join(tmp, "dataset")
+            record_sim_episodes(
+                robot_id="omnibot",
+                num_episodes=2,
+                steps_per_episode=5,
+                output_dir=dataset_dir,
+            )
+
+            class EmptyDataset:
+                def __init__(self, *args, **kwargs):
+                    pass
+
+                def __len__(self):
+                    return 0
+
+            fake_mod = types.ModuleType("lerobot.datasets.lerobot_dataset")
+            fake_mod.LeRobotDataset = EmptyDataset
+            fake_pkg = types.ModuleType("lerobot.datasets")
+            fake_pkg.LeRobotDataset = EmptyDataset
+
+            with patch.dict(
+                sys.modules,
+                {
+                    "lerobot": types.ModuleType("lerobot"),
+                    "lerobot.datasets": fake_pkg,
+                    "lerobot.datasets.lerobot_dataset": fake_mod,
+                    "lerobot.common.datasets.lerobot_dataset": fake_mod,
+                },
+            ):
+                with self.assertRaises(RuntimeError) as cm:
+                    validate_lerobot_dataset(dataset_dir, mock=False)
+                self.assertIn("0 frames", str(cm.exception))
+
+                self.assertFalse(validate_lerobot_dataset(dataset_dir, mock=True))
+
+    def test_validation_strictness_non_mock_loader_success(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            dataset_dir = os.path.join(tmp, "dataset")
+            record_sim_episodes(
+                robot_id="omnibot",
+                num_episodes=2,
+                steps_per_episode=5,
+                output_dir=dataset_dir,
+            )
+
+            class ValidDataset:
+                def __init__(self, *args, **kwargs):
+                    pass
+
+                def __len__(self):
+                    return 10
+
+            fake_mod = types.ModuleType("lerobot.datasets.lerobot_dataset")
+            fake_mod.LeRobotDataset = ValidDataset
+            fake_pkg = types.ModuleType("lerobot.datasets")
+            fake_pkg.LeRobotDataset = ValidDataset
+
+            with patch.dict(
+                sys.modules,
+                {
+                    "lerobot": types.ModuleType("lerobot"),
+                    "lerobot.datasets": fake_pkg,
+                    "lerobot.datasets.lerobot_dataset": fake_mod,
+                    "lerobot.common.datasets.lerobot_dataset": fake_mod,
+                },
+            ):
+                self.assertTrue(validate_lerobot_dataset(dataset_dir, mock=False))
+                val_info = validate_dataset(dataset_dir, mock=False)
+                self.assertTrue(val_info["schema_valid"])
+                self.assertTrue(val_info["lerobot_dataset_loaded"])
+
+    def test_validation_strictness_schema_failure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            # Missing files should raise FileNotFoundError in both mock and non-mock
+            with self.assertRaises(FileNotFoundError):
+                validate_dataset(tmp, mock=False)
+            with self.assertRaises(FileNotFoundError):
+                validate_dataset(tmp, mock=True)
+
+    def test_cli_non_mock_exits_nonzero_when_validation_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            # Running CLI in non-mock mode without lerobot must exit non-zero
+            with patch.dict(
+                sys.modules,
+                {
+                    "lerobot": None,
+                    "lerobot.datasets": None,
+                    "lerobot.datasets.lerobot_dataset": None,
+                    "lerobot.common.datasets.lerobot_dataset": None,
+                },
+            ):
+                rc = cli_main(
+                    [
+                        "sim-loop",
+                        "--episodes",
+                        "2",
+                        "--steps-per-episode",
+                        "2",
+                        "--eval-steps",
+                        "2",
+                        "--output-dir",
+                        tmp,
+                    ]
+                )
+                self.assertNotEqual(rc, 0)
+
+    @unittest.skipUnless(_has_fastapi(), "fastapi not installed — [serve] extra")
     def test_mock_sim_loop_end_to_end(self):
         with tempfile.TemporaryDirectory() as tmp:
             results = run_sim_loop(
@@ -169,6 +385,7 @@ class TestSimLoop(unittest.TestCase):
             self.assertTrue((ckpt_dir / "config.json").exists())
             self.assertTrue((ckpt_dir / "metrics.json").exists())
 
+    @unittest.skipUnless(_has_fastapi(), "fastapi not installed — [serve] extra")
     def test_cli_sim_loop(self):
         with tempfile.TemporaryDirectory() as tmp:
             rc = cli_main(

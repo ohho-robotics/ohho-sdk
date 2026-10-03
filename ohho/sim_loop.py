@@ -121,37 +121,62 @@ def validate_schema(dataset_dir: str) -> bool:
     return True
 
 
-def validate_lerobot_dataset(dataset_dir: str) -> bool:
-    """Attempt to load the dataset using Hugging Face's LeRobotDataset."""
+def validate_lerobot_dataset(dataset_dir: str, mock: bool = False) -> bool:
+    """Attempt to load the dataset using Hugging Face's LeRobotDataset.
+
+    In non-mock mode (mock=False), if lerobot is missing, or LeRobotDataset raises,
+    or 0 frames are loaded, an exception is raised so the run exits non-zero.
+    In mock mode (mock=True), failures are caught and False is returned.
+    """
     try:
         try:
             from lerobot.common.datasets.lerobot_dataset import LeRobotDataset
-        except ImportError:
+        except (ImportError, ModuleNotFoundError):
             try:
                 from lerobot.datasets.lerobot_dataset import LeRobotDataset
-            except ImportError:
+            except (ImportError, ModuleNotFoundError):
                 from lerobot.datasets import LeRobotDataset
-    except ImportError:
-        return False
+    except (ImportError, ModuleNotFoundError) as e:
+        if mock:
+            return False
+        raise RuntimeError(
+            f"lerobot is not installed ({e}). In non-mock mode, LeRobotDataset verification is required. "
+            "Install with: pip install '.[train]'"
+        ) from e
 
     p = Path(dataset_dir).expanduser()
+    last_err: Optional[Exception] = None
     try:
         # Try local repo_id with root
         ds = LeRobotDataset(repo_id="local", root=str(p))
-        return len(ds) > 0
-    except Exception:
+        if len(ds) > 0:
+            return True
+        raise ValueError(f"LeRobotDataset loaded 0 frames from {dataset_dir}")
+    except Exception as e1:
+        last_err = e1
         try:
             # Try parent directory as root and dirname as repo_id
             ds = LeRobotDataset(repo_id=p.name, root=str(p.parent))
-            return len(ds) > 0
-        except Exception:
-            return False
+            if len(ds) > 0:
+                return True
+            raise ValueError(f"LeRobotDataset loaded 0 frames from {dataset_dir}")
+        except Exception as e2:
+            last_err = e2
+
+    if mock:
+        return False
+    raise RuntimeError(
+        f"LeRobotDataset failed to load dataset at {dataset_dir}: {last_err}"
+    ) from last_err
 
 
-def validate_dataset(dataset_dir: str) -> Dict[str, Any]:
+def validate_dataset(dataset_dir: str, mock: bool = False) -> Dict[str, Any]:
     """Run schema verification and optional LeRobotDataset loading."""
     schema_ok = validate_schema(dataset_dir)
-    lerobot_loaded = validate_lerobot_dataset(dataset_dir)
+    if not schema_ok:
+        raise ValueError(f"dataset schema check failed for {dataset_dir}")
+
+    lerobot_loaded = validate_lerobot_dataset(dataset_dir, mock=mock)
 
     reader = DatasetReader(dataset_dir)
     return {
@@ -235,11 +260,14 @@ def format_summary(results: Dict[str, Any]) -> str:
     episodes = results.get("episodes_recorded", 0)
     total_frames = results.get("total_frames", 0)
     schema_status = "Pass" if results.get("schema_valid") else "Fail"
-    lerobot_status = (
-        "Pass"
-        if results.get("lerobot_dataset_loaded")
-        else "Skipped (lerobot not installed)"
-    )
+    is_mock = results.get("mock", False)
+    lerobot_loaded = results.get("lerobot_dataset_loaded", False)
+    if lerobot_loaded:
+        lerobot_status = "Pass"
+    elif is_mock:
+        lerobot_status = "Skipped (mock mode)"
+    else:
+        lerobot_status = "Fail"
     model_name = results.get("model_name", "Tiny ACT (Action Chunking Transformer)")
     train_steps = results.get("train_steps", 0)
     loss_curve = results.get("loss_curve", [])
@@ -320,7 +348,13 @@ def run_sim_loop(
     print(f"      Dataset saved to: {dataset_path}")
 
     print("[2/5] Validating dataset schema & LeRobot loading...")
-    val_info = validate_dataset(dataset_path)
+    val_info = validate_dataset(dataset_path, mock=mock)
+    if not val_info.get("schema_valid"):
+        raise ValueError(f"dataset schema validation failed for {dataset_path}")
+    if not mock and not val_info.get("lerobot_dataset_loaded"):
+        raise RuntimeError(
+            f"LeRobotDataset verification failed for dataset at {dataset_path}"
+        )
     print(
         f"      Schema valid: {val_info['schema_valid']} | "
         f"Episodes: {val_info['total_episodes']} | "
@@ -360,8 +394,14 @@ def run_sim_loop(
     print(
         f"[4/5] Booting policy serve endpoint & taking {eval_steps} policy steps in sim..."
     )
-    from .serve import build_app
-    from fastapi.testclient import TestClient
+    try:
+        from .serve import build_app
+        from fastapi.testclient import TestClient
+    except (ImportError, ModuleNotFoundError) as e:
+        raise RuntimeError(
+            f"fastapi is not installed ({e}). Sim loop serve evaluation requires the [serve] extra. "
+            "Install with: pip install '.[serve]'"
+        ) from e
 
     app = build_app(
         model_class="act",
@@ -394,6 +434,7 @@ def run_sim_loop(
         "dataset_path": str(dataset_dir),
         "schema_valid": val_info["schema_valid"],
         "lerobot_dataset_loaded": val_info["lerobot_dataset_loaded"],
+        "mock": mock,
         "model_name": "Tiny ACT (Action Chunking Transformer)",
         "train_steps": train_steps,
         "loss_curve": loss_curve,

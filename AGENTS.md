@@ -59,7 +59,7 @@
 | **Nightly CPU sim loop (`sim-loop`)** | ✅ **OHH-86 complete** — `ohho.sim_loop` (teleop record >=5 episodes -> LeRobot v2.0 dataset schema check + LeRobotDataset loading -> tiny ACT CPU train -> FastAPI serve -> >=50 closed-loop sim steps + latency p50/p95). CLI `ohho sim-loop` + `python scripts/sim_loop.py` + `.github/workflows/sim-loop.yml`. |
 | CLI (`ohho`) | ✅ `doctor list version connect sim drive agent serve sim-serve sim-loop market profile nav look memory` |
 | Tests | Base install: `python -m unittest discover -s tests` -> 214 tests green (skipped=19). |
-| CI | `.github/workflows/ci.yml` (multi-OS, Py 3.10-3.13) + `.github/workflows/sim-loop.yml` (nightly CPU sim loop, upload checkpoint & dataset). |
+| CI | `.github/workflows/ci.yml` (multi-OS, Py 3.10-3.13) + `.github/workflows/sim-loop.yml` (nightly CPU sim loop designed for CPU runners, first run pending). |
 
 **M1 (two-robot hardware vertical slice) — software complete.** All four adapters
 (`yahboom`, `feetech`, `composite`, `unitree`) are built and unit-tested against
