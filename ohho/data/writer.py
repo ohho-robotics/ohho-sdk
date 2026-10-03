@@ -43,6 +43,7 @@ def write_dataset(
     _write_tasks(meta_dir, tasks)
     _write_episodes(meta_dir, episodes)
     _write_info(meta_dir, episodes, repo_id, fps, tasks)
+    _write_stats(meta_dir, episodes)
 
     use_parquet = _try_import_pyarrow() is not None
     for ep in episodes:
@@ -108,7 +109,11 @@ def _write_info(
         "fps": fps,
         "total_episodes": len(episodes),
         "total_frames": total_frames,
+        "total_tasks": len(tasks),
+        "total_videos": 0,
+        "total_chunks": 1,
         "chunks_size": CHUNK_SIZE,
+        "data_path": "data/chunk-{episode_chunk:03d}/episode_{episode_index:06d}.parquet",
         "tasks": tasks,
         "features": {
             "observation.state": {
@@ -145,6 +150,34 @@ def _write_info(
     }
     with open(meta_dir / "info.json", "w", encoding="utf-8") as f:
         json.dump(info, f, indent=2)
+
+
+def _write_stats(meta_dir: Path, episodes: List[Episode]) -> None:
+    all_frames = [f for ep in episodes for f in ep.frames]
+    if not all_frames:
+        return
+    state_dim = episodes[0].state_dim if episodes else 0
+    action_dim = episodes[0].action_dim if episodes else 0
+
+    stats = {}
+    if state_dim > 0:
+        state_cols = [
+            [f.observation_state[i] for f in all_frames] for i in range(state_dim)
+        ]
+        stats["observation.state"] = {
+            "min": [float(min(col)) for col in state_cols],
+            "max": [float(max(col)) for col in state_cols],
+            "mean": [float(sum(col) / len(col)) for col in state_cols],
+        }
+    if action_dim > 0:
+        action_cols = [[f.action[i] for f in all_frames] for i in range(action_dim)]
+        stats["action"] = {
+            "min": [float(min(col)) for col in action_cols],
+            "max": [float(max(col)) for col in action_cols],
+            "mean": [float(sum(col) / len(col)) for col in action_cols],
+        }
+    with open(meta_dir / "stats.json", "w", encoding="utf-8") as f:
+        json.dump(stats, f, indent=2)
 
 
 def _write_parquet(ep: Episode, fpath: Path) -> None:

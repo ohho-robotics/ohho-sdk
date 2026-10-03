@@ -1,0 +1,53 @@
+name: Sim Loop
+
+on:
+  schedule:
+    # Run nightly at 02:00 UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  sim-loop:
+    name: CPU Sim Loop (Record -> Validate -> Train -> Serve -> Eval)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install CPU PyTorch
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Install LeRobot and OhhO SDK
+        run: |
+          pip install "lerobot[dataset]==0.3.3"
+          pip install -e '.[data,serve,train]'
+
+      - name: Run CPU Sim Loop
+        run: |
+          python scripts/sim_loop.py --output-dir ./sim_loop_artifacts
+
+      - name: Upload trained model checkpoint
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: act-tiny-checkpoint
+          path: ./sim_loop_artifacts/checkpoint
+          if-no-files-found: warn
+
+      - name: Upload recorded dataset
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sim-lerobot-v2-dataset
+          path: ./sim_loop_artifacts/dataset
+          if-no-files-found: warn

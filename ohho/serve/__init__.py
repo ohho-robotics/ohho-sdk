@@ -84,10 +84,25 @@ def build_app(
         if api_key and x_api_key != api_key:
             raise HTTPException(status_code=401, detail="invalid API key")
 
+    if not model_class and model_path:
+        from pathlib import Path
+
+        p = Path(model_path).expanduser()
+        if (
+            (p / "policy.pt").exists()
+            or (p / "config.json").exists()
+            or str(model_path).endswith(".pt")
+        ):
+            model_class = "act"
+
     if mock_model:
         _model = _MockModel(dev)
         if model_path:
             _model.load_model(model_path)
+    elif auto_load and model_path:
+        cls = _resolve_model_class(model_class)
+        _model = cls()
+        _model.load_model(model_path)
 
     @app.get("/health")
     async def health():
@@ -99,11 +114,22 @@ def build_app(
         x_api_key: Optional[str] = Header(None),
     ):
         _check_auth(x_api_key)
-        nonlocal _model, _model_path
+        nonlocal _model, _model_path, model_class
         path = model_path or _model_path
         if not path:
             raise HTTPException(400, "model_path required")
         _model_path = path
+        if not model_class:
+            from pathlib import Path
+
+            p = Path(path).expanduser()
+            if (
+                (p / "policy.pt").exists()
+                or (p / "config.json").exists()
+                or str(path).endswith(".pt")
+            ):
+                model_class = "act"
+
         if mock_model:
             _model = _MockModel(dev)
             _model.load_model(path)
@@ -178,6 +204,10 @@ def _resolve_model_class(dotted: str):
     """Import a dotted class path like 'vla_serve.models.openvla.OpenVLAModel'."""
     if not dotted:
         dotted = "vla_serve.models.openvla.OpenVLAModel"
+    if dotted in ("act", "tiny_act", "ACTModel", "ohho.serve.act.ACTModel"):
+        from .act import ACTModel
+
+        return ACTModel
     parts = dotted.rsplit(".", 1)
     if len(parts) != 2:
         raise ValueError(f"invalid model class path: {dotted}")

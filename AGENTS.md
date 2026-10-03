@@ -56,9 +56,10 @@
 | **Navigation (native, no-ROS)** | ✅ **v1.1.0** — `ohho.nav`: grid mapping, costmap, A*, frontiers, `Navigator` (collision-aware). CLI `ohho nav goto/explore/map` |
 | **Memory + perception** | ✅ **v1.1.0** — `ohho.memory` (object permanence, temporal queries, JSON persistence) + `ohho.perception` (`SimPerceptor`, Claude-vision `VlmPerceptor`). CLI `ohho look`, `ohho memory` |
 | **Simulation WebSocket (`sim-serve`)** | ✅ **OHH-91 complete** — `ohho.sim_serve` (JSON WebSocket session: velocity/joints/deadman/estop, 300ms timeout, estop latch; backends: `sim` and `ros2` via rosbridge; isaac/mujoco exit non-zero). CLI `ohho sim-serve` |
-| CLI (`ohho`) | ✅ `doctor list version connect sim drive agent serve sim-serve market profile nav look memory` |
-| Tests | Base install, Python 3.12.3, Linux: `python -m unittest discover -s tests` → Ran 206 tests, OK (skipped=18). |
-| CI | `.github/workflows/ci.yml` — ubuntu, macos, windows × Python 3.10–3.13. No GitHub run is attached to this commit. |
+| **Nightly CPU sim loop (`sim-loop`)** | ✅ **OHH-86 complete** — `ohho.sim_loop` (teleop record >=5 episodes -> LeRobot v2.0 dataset schema check + LeRobotDataset loading -> tiny ACT CPU train -> FastAPI serve -> >=50 closed-loop sim steps + latency p50/p95). CLI `ohho sim-loop` + `python scripts/sim_loop.py` + `.github/workflows/sim-loop.yml`. |
+| CLI (`ohho`) | ✅ `doctor list version connect sim drive agent serve sim-serve sim-loop market profile nav look memory` |
+| Tests | Base install: `python -m unittest discover -s tests` -> 214 tests green (skipped=19). |
+| CI | `.github/workflows/ci.yml` (multi-OS, Py 3.10-3.13) + `.github/workflows/sim-loop.yml` (nightly CPU sim loop designed for CPU runners, first run pending). |
 
 **M1 (two-robot hardware vertical slice) — software complete.** All four adapters
 (`yahboom`, `feetech`, `composite`, `unitree`) are built and unit-tested against
@@ -170,17 +171,23 @@ sdk/
 │   │   ├── writer.py     # write_dataset — LeRobot v2.0 (Parquet via pyarrow, JSON Lines fallback)
 │   │   └── reader.py     # DatasetReader — lightweight reader (no torch needed), stats()
 │   ├── train/            # ohho.train — finetune() delegates to lerobot_engine, mock mode for sim
-│   │   └── __init__.py   # finetune(), SUPPORTED_POLICIES, TrainUnavailable, _mock_train()
+│   │   ├── __init__.py   # finetune(), SUPPORTED_POLICIES, TrainUnavailable, _mock_train()
+│   │   └── act.py        # TinyACTPolicy + train_act() CPU Action Chunking Transformer
 │   ├── serve/            # ohho.serve — FastAPI inference server, `ohho serve` CLI
-│   │   └── __init__.py   # serve(), build_app(), ServeUnavailable, _MockModel
+│   │   ├── __init__.py   # serve(), build_app(), ServeUnavailable, _MockModel
+│   │   └── act.py        # ACTModel inference adapter
 │   ├── sim_serve.py      # ohho.sim_serve — WebSocket teleop and telemetry server (`sim` and `ros2`)
+│   ├── sim_loop.py       # ohho.sim_loop — record -> validate -> tiny ACT train -> serve -> eval pipeline
 │   ├── profiles.py       # HardwareProfile, detect_profile(), `ohho profile` CLI
 │   ├── market.py         # Skill registry, @skill decorator, run_skill(), `ohho market` CLI
 │   ├── hardware.py       # resolve_device("auto") -> cuda/mps/cpu (lazy torch)
-│   ├── cli.py            # argparse: doctor/list/version/connect/sim/drive/agent/sim-serve; main()
+│   ├── cli.py            # argparse: doctor/list/version/connect/sim/drive/agent/serve/sim-serve/sim-loop; main()
 │   └── robots/
 │       └── example.json  # example manifest (nested dof/limits) for load_manifest()
-└── tests/                # unittest suite including test_sim_serve.py
+├── scripts/
+│   ├── check_classifiers.py
+│   └── sim_loop.py       # one-liner reproducible sim loop runner
+└── tests/                # unittest suite including test_sim_loop.py, test_sim_serve.py
 ```
 
 ---
