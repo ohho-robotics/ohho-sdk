@@ -48,17 +48,23 @@ ohho selftest --robot omnibot --allow-spin \
   --out /tmp/bench-report.json
 ```
 
+### 4. Exit Codes & All-Skip Prevention
+- `0`: Success (all checks passed or safely skipped with hardware verified, or `--sim` mode, or `--allow-all-skip` passed).
+- `1`: One or more self-test checks reported `FAIL`.
+- `2`: Hardware transport initialization failed or unhandled exception.
+- `3`: All checks were `SKIP` in hardware mode (no hardware verified). Pass `--allow-all-skip` if an all-skip run is intentionally permitted.
+
 ---
 
 ## The 5 Hardware Checks
 
 | Check Name | Target Subsystem | PASS Criteria | SKIP Condition |
 |---|---|---|---|
-| `serial_link` | Base & Arm serial links | Serial ports open, connection state `CONNECTED`, ping/query acknowledged | Port not connected / `pyserial` not installed |
-| `wheel_spin_encoders` | 4 mecanum wheels (FL, FR, RL, RR) | Each wheel spins forward with positive encoder delta ($\Delta\text{ticks} > 0$) | `--allow-spin` omitted on hardware |
-| `imu_rate` | 6-DOF / 9-DOF IMU | Publishing rate $\ge 10.0\text{ Hz}$ (nominal $20\text{--}50\text{ Hz}$) | Transport offline |
-| `sts3215_servos` | 6x STS3215 bus servos | All 6 servos respond with valid ID, voltage ($6.0\text{--}9.0\text{ V}$), temperature ($< 70^\circ\text{C}$), position | Arm bus offline |
-| `camera_frames` | RGB camera (e.g. `/dev/video0`) | Minimum 5 consecutive frames received at valid resolution and rate | OpenCV not installed or device missing |
+| `serial_link` | Base & Arm serial links | Serial ports open, connection state `CONNECTED`, ping/query acknowledged | Port not connected / absent, or `pyserial` not installed |
+| `wheel_spin_encoders` | 4 mecanum wheels (FL, FR, RL, RR) | Each wheel spins forward with positive encoder delta ($\Delta\text{ticks} > 0$) | `--allow-spin` omitted on hardware, or encoder counts not available from adapter |
+| `imu_rate` | 6-DOF / 9-DOF IMU | Publishing rate $\ge 10.0\text{ Hz}$ measured over bounded window from single stream | Transport offline |
+| `sts3215_servos` | 6x STS3215 bus servos | All 6 servos respond with valid ID, measured voltage ($6.0\text{--}9.0\text{ V}$), temperature ($< 70^\circ\text{C}$), and position (no fallback defaults) | Arm bus offline or no servos responding |
+| `camera_frames` | RGB camera (e.g. `/dev/video0` or OpenCV index) | Minimum 5 consecutive frames received at valid resolution and rate | OpenCV not installed or device missing |
 
 ---
 

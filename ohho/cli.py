@@ -433,7 +433,16 @@ def _cmd_selftest(args) -> int:
 
     print(format_report_text(report))
     print(f"Report saved to: {out_path}")
-    return 1 if report.overall_status == "FAIL" else 0
+    if report.overall_status == "FAIL":
+        return 1
+    if report.mode == "hardware" and report.summary.get("passed", 0) == 0:
+        if not getattr(args, "allow_all_skip", False):
+            print(
+                "Error: all hardware checks were skipped (no hardware verified). Exiting with code 3.",
+                file=sys.stderr,
+            )
+            return 3
+    return 0
 
 
 def _add_robot_args(
@@ -611,6 +620,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     st.add_argument(
         "--camera-idx", type=int, default=0, help="camera device index (default: 0)"
+    )
+    st.add_argument(
+        "--allow-all-skip",
+        action="store_true",
+        help="allow exit code 0 when all checks are skipped in hardware mode",
     )
     st.set_defaults(func=_cmd_selftest)
 

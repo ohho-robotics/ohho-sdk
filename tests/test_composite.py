@@ -148,8 +148,12 @@ class TestCompositeTransport(unittest.TestCase):
             self.assertEqual(bytes(fs.written), proto.packet_motor(50, 0, 0, 0))
             servos = ct.read_servo_diagnostics()
             self.assertEqual(len(servos), 6)
+            # Yahboom base returns empty dict for encoders
             encs = ct.get_wheel_encoders()
-            self.assertIn("front_left", encs)
+            self.assertEqual(encs, {})
+            # When base provides encoders, composite delegates them
+            ct.base.get_wheel_encoders = lambda: {"front_left": 42}
+            self.assertEqual(ct.get_wheel_encoders(), {"front_left": 42})
         finally:
             ct.disconnect()
 
