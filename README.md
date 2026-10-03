@@ -138,6 +138,20 @@ The nightly CI workflow (`.github/workflows/sim-loop.yml`) is designed to run th
    ```
    Both exit non-zero and print `not built`.
 
+## Hardware Bring-Up Self-Test (`selftest`)
+
+`ohho selftest` evaluates hardware health across 5 core subsystems (serial link, 4-wheel spin with encoder feedback, IMU publishing rate, STS3215 arm servos, and camera frame streaming) and outputs a dated JSON report (`selftest-YYYYMMDD-HHMMSS.json`).
+
+```bash
+# In simulation (runs in CI without hardware)
+ohho selftest --sim
+
+# On hardware (wheel spin safety lock requires explicit confirmation or --allow-spin)
+ohho selftest --robot omnibot --allow-spin
+```
+
+See [`docs/selftest.md`](docs/selftest.md) for full usage, safety invariants, and the JSON schema.
+
 ## TypeScript
 
 `ts/` is the previous TypeScript workspace (`package.json`,

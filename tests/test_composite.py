@@ -8,7 +8,10 @@ from ohho.adapters import _yahboom_proto as proto
 from ohho.registry import get_spec
 from ohho.schema import Velocity
 
-from test_yahboom_proto import make_rx_velocity
+try:
+    from test_yahboom_proto import make_rx_velocity
+except ImportError:
+    from tests.test_yahboom_proto import make_rx_velocity
 
 
 class FakeSerial:
@@ -133,6 +136,22 @@ class TestCompositeTransport(unittest.TestCase):
         ct.connect()
         ct.disconnect()
         self.assertFalse(bus.connected)
+
+    def test_composite_delegates_bench_diagnostics(self):
+        ct, fs, bus = _make_composite()
+        ct.connect()
+        try:
+            self.assertIs(ct.base, ct._base)
+            self.assertIs(ct.arm, ct._arm)
+            fs.written.clear()
+            ct.send_motor(50, 0, 0, 0)
+            self.assertEqual(bytes(fs.written), proto.packet_motor(50, 0, 0, 0))
+            servos = ct.read_servo_diagnostics()
+            self.assertEqual(len(servos), 6)
+            encs = ct.get_wheel_encoders()
+            self.assertIn("front_left", encs)
+        finally:
+            ct.disconnect()
 
 
 class TestCompositeWithSim(unittest.TestCase):

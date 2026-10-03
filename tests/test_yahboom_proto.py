@@ -32,6 +32,15 @@ class TestYahboomProto(unittest.TestCase):
         pkt = proto.packet_set_car_type()
         self.assertEqual(pkt[3], proto.FUNC_SET_CAR_TYPE)
 
+    def test_packet_motor(self):
+        pkt = proto.packet_motor(50, -50, 100, -100)
+        self.assertEqual(pkt[0], 0xFF)
+        self.assertEqual(pkt[1], 0xFC)
+        self.assertEqual(pkt[3], proto.FUNC_MOTOR)
+        fl, fr, rl, rr = struct.unpack_from("<hhhh", pkt, 4)
+        self.assertEqual((fl, fr, rl, rr), (50, -50, 100, -100))
+        self.assertEqual(pkt[-1], (sum(pkt[:-1]) + 5) & 0xFF)
+
     def test_parse_stream_decodes_velocity(self):
         frame = make_rx_velocity(0.3, -0.1, 0.5)
         packets, consumed = proto.parse_stream(frame)

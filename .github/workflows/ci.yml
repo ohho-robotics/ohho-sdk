@@ -31,3 +31,5 @@ jobs:
         run: ohho doctor
       - name: CLI smoke (sim)
         run: ohho sim --robot omnibot --seconds 2
+      - name: CLI smoke (selftest sim)
+        run: ohho selftest --sim
