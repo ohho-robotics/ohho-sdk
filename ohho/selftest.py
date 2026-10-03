@@ -82,12 +82,14 @@ def _port_exists(port: str) -> bool:
     """Check if a serial port is present on the system."""
     if not port:
         return False
-    if os.name == "nt" or port.upper().startswith("COM"):
+    # Strip the Win32 device namespace prefix (\\.\COM3 -> COM3) before deciding,
+    # so COM-style names are handled the same way on every OS.
+    clean = port.upper().replace("\\\\.\\", "").strip()
+    if os.name == "nt" or clean.startswith("COM"):
         try:
             from serial.tools import list_ports  # type: ignore
 
             devs = [p.device.upper() for p in list_ports.comports()]
-            clean = port.upper().replace("\\\\.\\", "").strip()
             return clean in devs or port.upper() in devs
         except Exception:
             if port.upper().startswith("COM") or "\\\\.\\COM" in port.upper():
