@@ -67,6 +67,37 @@ Those adapters are not installed by `pip install ohho-os`. The extras are
 distro. `train` needs torch. None of those were installed for the test
 run above.
 
+## Pipeline in sim
+
+The complete Data -> Train -> Serve sim loop can be reproduced locally with a single command:
+
+```bash
+python scripts/sim_loop.py
+# or
+ohho sim-loop
+```
+
+This single command executes the full five-stage CPU sim loop end-to-end:
+1. **Record**: Connects to the simulated robot (`omnibot` over `sim://`), captures >= 5 scripted teleoperation episodes (100 total frames), and writes a standardized LeRobot v2.0 dataset (`meta/info.json`, `meta/tasks.jsonl`, `meta/episodes.jsonl`, `meta/stats.json`, `data/chunk-000/episode_*.parquet`).
+2. **Validate**: Validates the dataset against the LeRobot v2.0 schema and loads it via `LeRobotDataset`.
+3. **Train**: Trains a tiny Action Chunking Transformer (ACT, CVAE + Transformer) policy on CPU for 200 steps and saves the checkpoint (`policy.pt`, `config.json`, `metrics.json`).
+4. **Serve & Evaluate**: Boots the FastAPI inference endpoint, loads the trained ACT checkpoint, and executes >= 50 policy-driven closed-loop steps on the simulated robot without errors.
+5. **Summary**: Computes serve request latency percentiles (p50 and p95) and formats the run metrics and train loss curve. In GitHub Actions, the summary is published to `$GITHUB_STEP_SUMMARY`.
+
+To run in dry-run / mock mode on machines without PyTorch installed:
+```bash
+python scripts/sim_loop.py --mock
+# or
+ohho sim-loop --mock
+```
+
+To run with custom parameters:
+```bash
+python scripts/sim_loop.py --episodes 5 --steps-per-episode 20 --train-steps 200 --eval-steps 50 --output-dir ./sim_loop_output
+```
+
+The nightly CI workflow (`.github/workflows/sim-loop.yml`) runs this command in under 20 minutes on CPU-only runners, verifies LeRobotDataset loading, and uploads the trained checkpoint artifact.
+
 ## Simulation WebSocket Server (`sim-serve`)
 
 `ohho sim-serve` exposes a JSON WebSocket session for teleoperation and telemetry streaming. It supports the in-process simulator (`sim://`) or connects to ROS 2 through rosbridge.

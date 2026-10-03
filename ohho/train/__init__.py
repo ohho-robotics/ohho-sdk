@@ -63,6 +63,16 @@ def finetune(
     out.mkdir(parents=True, exist_ok=True)
 
     if mock:
+        if policy == "act":
+            from .act import train_act
+
+            return train_act(
+                dataset=dataset,
+                output_dir=str(out),
+                device=dev,
+                mock=True,
+                **kwargs,
+            )
         return _mock_train(dataset, policy, dev, out)
 
     try:
@@ -77,7 +87,20 @@ def finetune(
             lr=lr,
             **kwargs,
         )
-    except ImportError as e:
+    except (ImportError, ModuleNotFoundError) as e:
+        if policy == "act":
+            from .act import train_act
+
+            return train_act(
+                dataset=dataset,
+                output_dir=str(out),
+                device=dev,
+                train_steps=kwargs.get("train_steps", num_epochs * 2),
+                batch_size=batch_size,
+                lr=lr,
+                mock=False,
+                **kwargs,
+            )
         raise TrainUnavailable(
             f"Training policy '{policy}' needs torch + lerobot: "
             f"pip install 'ohho-os[train]'. Use mock=True for the sim loop. "
@@ -168,4 +191,11 @@ def _default_checkpoint(policy: str) -> str:
     return defaults.get(policy, "")
 
 
-__all__ = ["finetune", "TrainUnavailable", "SUPPORTED_POLICIES"]
+__all__ = [
+    "finetune",
+    "TrainUnavailable",
+    "SUPPORTED_POLICIES",
+    "train_act",
+    "TinyACTPolicy",
+    "load_act_checkpoint",
+]
