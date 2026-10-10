@@ -209,6 +209,26 @@ def _cmd_sim_serve(args) -> int:
     return 0
 
 
+def _cmd_sim_loop(args) -> int:
+    from .sim_loop import run_sim_loop
+
+    try:
+        run_sim_loop(
+            robot_id=args.robot,
+            episodes=args.episodes,
+            steps_per_episode=args.steps_per_episode,
+            train_steps=args.train_steps,
+            eval_steps=args.eval_steps,
+            device=args.device,
+            output_dir=args.output_dir,
+            mock=args.mock,
+        )
+        return 0
+    except Exception as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+
+
 def _cmd_market(args) -> int:
     from .market import list_skills, run_skill, SkillRequirementsNotMet
 
@@ -516,6 +536,47 @@ def build_parser() -> argparse.ArgumentParser:
         "--rate", type=float, default=20.0, help="telemetry broadcast rate in Hz"
     )
     ss.set_defaults(func=_cmd_sim_serve)
+
+    sl = sub.add_parser(
+        "sim-loop",
+        help="run nightly CPU sim loop (record -> validate -> train ACT -> serve -> drive sim)",
+    )
+    sl.add_argument("--robot", default="omnibot", help="robot spec ID to simulate")
+    sl.add_argument(
+        "--episodes", type=int, default=5, help="number of episodes to record"
+    )
+    sl.add_argument(
+        "--steps-per-episode",
+        type=int,
+        default=20,
+        help="number of frames recorded per episode",
+    )
+    sl.add_argument(
+        "--train-steps",
+        type=int,
+        default=200,
+        help="number of CPU training steps for ACT",
+    )
+    sl.add_argument(
+        "--eval-steps",
+        type=int,
+        default=50,
+        help="number of closed-loop policy evaluation steps",
+    )
+    sl.add_argument(
+        "--device", default="cpu", help="device to run training and inference on"
+    )
+    sl.add_argument(
+        "--output-dir",
+        default="./sim_loop_output",
+        help="output directory for dataset and checkpoints",
+    )
+    sl.add_argument(
+        "--mock",
+        action="store_true",
+        help="run in mock mode (no torch or GPU dependencies required)",
+    )
+    sl.set_defaults(func=_cmd_sim_loop)
 
     mk = sub.add_parser("market", help="list and run robot skills")
     mk_sub = mk.add_subparsers(dest="action")

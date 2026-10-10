@@ -63,6 +63,21 @@ def finetune(
     out.mkdir(parents=True, exist_ok=True)
 
     if mock:
+        if policy == "act":
+            from .act import train_act
+
+            act_kwargs = dict(kwargs)
+            act_train_steps = act_kwargs.pop("train_steps", num_epochs * 2)
+            return train_act(
+                dataset=dataset,
+                output_dir=str(out),
+                device=dev,
+                train_steps=act_train_steps,
+                batch_size=batch_size,
+                lr=lr,
+                mock=True,
+                **act_kwargs,
+            )
         return _mock_train(dataset, policy, dev, out)
 
     try:
@@ -77,7 +92,22 @@ def finetune(
             lr=lr,
             **kwargs,
         )
-    except ImportError as e:
+    except (ImportError, ModuleNotFoundError) as e:
+        if policy == "act":
+            from .act import train_act
+
+            act_kwargs = dict(kwargs)
+            act_train_steps = act_kwargs.pop("train_steps", num_epochs * 2)
+            return train_act(
+                dataset=dataset,
+                output_dir=str(out),
+                device=dev,
+                train_steps=act_train_steps,
+                batch_size=batch_size,
+                lr=lr,
+                mock=False,
+                **act_kwargs,
+            )
         raise TrainUnavailable(
             f"Training policy '{policy}' needs torch + lerobot: "
             f"pip install 'ohho-os[train]'. Use mock=True for the sim loop. "
@@ -168,4 +198,25 @@ def _default_checkpoint(policy: str) -> str:
     return defaults.get(policy, "")
 
 
-__all__ = ["finetune", "TrainUnavailable", "SUPPORTED_POLICIES"]
+__all__ = [
+    "finetune",
+    "TrainUnavailable",
+    "SUPPORTED_POLICIES",
+    "train_act",
+    "TinyACTPolicy",
+    "load_act_checkpoint",
+]
+
+
+def __getattr__(name: str) -> Any:
+    if name in ("train_act", "TinyACTPolicy", "load_act_checkpoint"):
+        from . import act
+
+        val = getattr(act, name)
+        globals()[name] = val
+        return val
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __dir__() -> list[str]:
+    return sorted(list(globals().keys()) + list(__all__))
