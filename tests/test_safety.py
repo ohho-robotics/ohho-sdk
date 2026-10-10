@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import io
 import json
-import math
+import logging
 import os
 import shutil
 import sys
@@ -47,6 +47,11 @@ from ohho.schema import Velocity
 from ohho.transport import BaseTransport
 
 WALL = 1_760_000_000.0
+
+
+def setUpModule() -> None:
+    # Keep the gate's warnings out of the test output (assertLogs still works).
+    logging.getLogger("ohho.safety").addHandler(logging.NullHandler())
 
 
 class FakeClock:
@@ -381,8 +386,10 @@ class TestProfiles(GateCase):
 class TestVelocityCaps(GateCase):
     def test_clamps_each_axis_not_rejects(self):
         gate, inner = self.make(profile=fast(GO2_PROFILE))
+        self.clock.advance(0.01)
         gate.send_velocity(Velocity(2.0, 1.0, 3.0))
         self.assertEqual(inner.velocities()[-1], (0.5, 0.3, 1.0))
+        self.clock.advance(0.01)
         gate.send_velocity(Velocity(-2.0, -1.0, -3.0))
         self.assertEqual(inner.velocities()[-1], (-0.5, -0.3, -1.0))
         clamps = self.events("clamp")
@@ -393,6 +400,7 @@ class TestVelocityCaps(GateCase):
 
     def test_within_caps_passes_unchanged(self):
         gate, inner = self.make(profile=fast(GO2_PROFILE))
+        self.clock.advance(0.01)
         gate.send_velocity(Velocity(0.2, -0.1, 0.4))
         self.assertEqual(inner.velocities(), [(0.2, -0.1, 0.4)])
         self.assertEqual(self.events("clamp"), [])
@@ -576,8 +584,14 @@ class TestJointAndEffortCaps(GateCase):
 
 # ── watchdogs ─────────────────────────────────────────────────────────────────
 class TestWatchdogs(GateCase):
+    def test_zero_dt_allows_no_acceleration(self):
+        gate, inner = self.make(profile=fast(GO2_PROFILE))
+        gate.send_velocity(Velocity(0.3))  # same instant as arming
+        self.assertEqual(inner.velocities(), [ZERO])
+
     def test_command_watchdog_zeroes_after_300ms(self):
         gate, inner = self.make(profile=fast(GO2_PROFILE))
+        self.clock.advance(0.01)
         gate.send_velocity(Velocity(0.3))
         self.clock.advance(0.29)
         gate.tick()
@@ -593,9 +607,9 @@ class TestWatchdogs(GateCase):
     def test_fresh_command_resets_command_watchdog(self):
         gate, inner = self.make(profile=fast(GO2_PROFILE))
         for _ in range(3):
-            gate.send_velocity(Velocity(0.3))
             self.clock.advance(0.2)
             self.state(inner)
+            gate.send_velocity(Velocity(0.3))
             gate.tick()
         self.assertNotIn(ZERO, inner.velocities())
 
@@ -776,6 +790,7 @@ class TestEstopLatch(GateCase):
         self.answer = ARM_PHRASE
         self.state(inner)
         self.assertTrue(gate.arm())
+        self.clock.advance(0.01)
         gate.send_velocity(Velocity(0.2))
         self.assertEqual(inner.velocities()[-1], (0.2, 0.0, 0.0))
 
@@ -889,6 +904,7 @@ class TestAllowlist(GateCase):
 
     def test_move_goes_through_velocity_caps(self):
         gate, inner = self.make(profile=fast(GO2_PROFILE))
+        self.clock.advance(0.01)
         self.assertTrue(gate.command("move", 2.0, 0.0, 0.0))
         self.assertEqual(inner.velocities()[-1], (0.5, 0.0, 0.0))
         self.assertTrue(gate.command("Move", 0.1, 0.0, 0.0))
@@ -1320,6 +1336,7 @@ class TestGatePlumbing(GateCase):
         self.assertTrue(bot.gated)
         sim._emit_telemetry(sim.read())
         self.assertTrue(bot.arm())  # simulated link: no TTY needed
+        self.clock.advance(0.01)
         bot.drive(vx=2.0)
         sim.step(1.0)
         self.assertAlmostEqual(sim.read().odom.x, 0.5, places=5)
@@ -1363,6 +1380,71 @@ class TestGatePlumbing(GateCase):
             self.assertEqual(self.events("reject")[-1]["reason"], "not_armed")
         finally:
             bot.disconnect()
+
+
+class TestFailClosedEdges(GateCase):
+    def test_unauditable_clamps_are_not_forwarded(self):
+        audit = FailingAudit()
+        prof = replace(OMNIBOT_PROFILE, effort_limits={"arm_gripper": 1.0})
+        gate, inner = self.make(FakeEffortArm(), "omnibot", profile=prof, audit=audit)
+        self.state(inner, joints=[JointReading("arm_gripper", 0.0)])
+        audit.fail = True
+        gate.send_joint_command("arm_gripper", 0.7)  # step clamp → audit fails
+        self.assertTrue(self.make_rearmed(gate, audit))
+        audit.fail = True
+        gate.send_joint_effort("arm_gripper", 5.0)  # effort clamp → audit fails
+        self.assertNotIn("joint", inner.names())
+        self.assertNotIn("effort", inner.names())
+        audit.fail = False
+        g2, i2 = self.make(audit=audit)
+        audit.fail = True
+        self.assertFalse(g2.command("euler", 0.9, 0.0, 0.0))
+        self.assertNotIn("sport", i2.names())
+
+    def make_rearmed(self, gate, audit) -> bool:
+        audit.fail = False
+        return gate.arm()
+
+    def test_stop_move_survives_sport_failure(self):
+        gate, inner = self.make()
+        inner.fail.add("sport")
+        self.assertTrue(gate.command("stop_move"))
+        self.assertEqual(inner.velocities()[-1], ZERO)
+
+    def test_unparseable_orientation_trips(self):
+        gate, inner = self.make()
+        self.state(inner, roll="tilted?")
+        self.assertEqual(gate.latch_reason, "tilt")
+
+    def test_estop_before_any_state_never_damps(self):
+        inner = FakeGo2()
+        gate = SafetyGate(
+            inner,
+            get_spec("unitree-go2"),
+            clock=self.clock,
+            audit=AuditLog(self.tmp, wall_clock=lambda: WALL),
+            environ=self.env,
+            auto_tick=False,
+        )
+        gate.emergency_stop()
+        self.assertEqual(inner.names(), ["estop"])
+
+    def test_broken_stdin_is_not_a_tty(self):
+        broken = mock.Mock()
+        broken.isatty.side_effect = ValueError("I/O operation on closed file")
+        with mock.patch.object(sys, "stdin", broken):
+            self.assertFalse(safety._stdin_isatty())
+
+    def test_operator_identity_falls_back(self):
+        with mock.patch("getpass.getuser", side_effect=OSError("no user")):
+            self.assertEqual(safety._operator()["user"], "unknown")
+
+    def test_audit_serialises_nested_and_odd_values(self):
+        log = AuditLog(self.tmp, wall_clock=lambda: WALL)
+        self.assertTrue(log.write("x", nested={"a": (1.0, float("inf"))}, obj=object()))
+        rec = self.events("x")[-1]
+        self.assertEqual(rec["nested"], {"a": [1.0, None]})
+        self.assertIsInstance(rec["obj"], str)
 
 
 class TestCliSafetyFlags(unittest.TestCase):
