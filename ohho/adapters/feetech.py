@@ -258,24 +258,27 @@ class FeetechTransport(BaseTransport):
                     pass
 
         for name, mid in zip(self._joint_names, self._motor_ids):
-            tick = positions.get(name, HOME_TICKS)
+            online = self._bus is not None and (name in positions)
             pos_rad = (
-                (tick - HOME_TICKS) / TICKS_PER_RAD
+                round((positions[name] - HOME_TICKS) / TICKS_PER_RAD, 4)
                 if name in positions
-                else self._positions.get(name, 0.0)
+                else None
             )
-            raw_v = voltages.get(name, 74)
-            # STS3215 Present_Voltage is typically in 0.1V (e.g. 74 is 7.4V)
-            volts = raw_v / 10.0 if raw_v > 20 else float(raw_v)
-            temp_c = float(temperatures.get(name, 28))
-            online = self._bus is not None and (name in positions or bool(positions))
+            raw_v = voltages.get(name)
+            if raw_v is not None:
+                # STS3215 Present_Voltage is typically in 0.1V (e.g. 74 is 7.4V)
+                volts = round(raw_v / 10.0 if raw_v > 20 else float(raw_v), 2)
+            else:
+                volts = None
+            raw_temp = temperatures.get(name)
+            temp_c = round(float(raw_temp), 1) if raw_temp is not None else None
             out.append(
                 {
                     "id": mid,
                     "name": name,
-                    "voltage": round(volts, 2),
-                    "temperature": round(temp_c, 1),
-                    "position": round(pos_rad, 4),
+                    "voltage": volts,
+                    "temperature": temp_c,
+                    "position": pos_rad,
                     "online": online,
                 }
             )

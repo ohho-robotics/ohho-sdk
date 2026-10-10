@@ -78,6 +78,33 @@ def default_report_path(now: Optional[datetime.datetime] = None) -> str:
 # ── Individual Checks ─────────────────────────────────────────────────────────
 
 
+def _port_exists(port: str) -> bool:
+    """Check if a serial port is present on the system."""
+    if not port:
+        return False
+    # Strip the Win32 device namespace prefix (\\.\COM3 -> COM3) before deciding,
+    # so COM-style names are handled the same way on every OS.
+    clean = port.upper().replace("\\\\.\\", "").strip()
+    if os.name == "nt" or clean.startswith("COM"):
+        try:
+            from serial.tools import list_ports  # type: ignore
+
+            devs = [p.device.upper() for p in list_ports.comports()]
+            return clean in devs or port.upper() in devs
+        except Exception:
+            if port.upper().startswith("COM") or "\\\\.\\COM" in port.upper():
+                try:
+                    import serial  # type: ignore
+
+                    s = serial.Serial(port)
+                    s.close()
+                    return True
+                except Exception:
+                    return False
+            return os.path.exists(port)
+    return os.path.exists(port)
+
+
 def check_serial_link(
     transport: Transport,
     *,
@@ -107,7 +134,7 @@ def check_serial_link(
     arm_p = arm_port
     if isinstance(transport, CompositeTransport):
         base_p = getattr(transport.base, "port", base_p)
-        arm_p = getattr(transport.arm, "port", "/dev/ttyACM0")
+        arm_p = getattr(transport.arm, "port", arm_port or "/dev/ttyACM0")
 
     # Check pyserial availability
     try:
@@ -125,16 +152,17 @@ def check_serial_link(
     st = transport.status()
     if st.state != ConnectionState.CONNECTED:
         dur = time.monotonic() - start_t
+        exists = _port_exists(base_p)
         return CheckResult(
             name="serial_link",
-            status="SKIP" if not os.path.exists(base_p) else "FAIL",
+            status="SKIP" if not exists else "FAIL",
             reason=f"Serial port {base_p} not connected (state: {st.state.value})",
             measurements={
                 "protocol": transport.protocol,
                 "state": st.state.value,
                 "base_port": base_p,
                 "arm_port": arm_p,
-                "port_exists": os.path.exists(base_p),
+                "port_exists": exists,
             },
             duration_s=dur,
         )
@@ -196,7 +224,23 @@ def check_wheel_spin_encoders(
                 duration_s=dur,
             )
 
-    # In sim, or hardware when allow_spin is True
+    get_enc = getattr(transport, "get_wheel_encoders", None)
+    if isinstance(transport, CompositeTransport) and not callable(get_enc):
+        get_enc = getattr(transport.base, "get_wheel_encoders", None)
+
+    if not sim:
+        enc_counts = get_enc() if callable(get_enc) else None
+        if not enc_counts or not all(w in enc_counts for w in wheels):
+            dur = time.monotonic() - start_t
+            return CheckResult(
+                name="wheel_spin_encoders",
+                status="SKIP",
+                reason="encoder counts not available from this adapter",
+                measurements={"safety_locked": False, "transport_connected": True},
+                duration_s=dur,
+            )
+
+    # In sim, or hardware when allow_spin is True and encoders are available
     wheel_results: dict[str, Any] = {}
     failed_wheels: list[str] = []
 
@@ -209,14 +253,9 @@ def check_wheel_spin_encoders(
     }
 
     send_m = getattr(transport, "send_motor", None)
-    get_enc = getattr(transport, "get_wheel_encoders", None)
 
     for w in wheels:
-        initial_enc = (
-            get_enc().get(w, 0)
-            if callable(get_enc)
-            else transport.read().custom.get("wheel_encoders", {}).get(w, 0)
-        )
+        initial_enc = get_enc().get(w, 0) if callable(get_enc) else 0
 
         fl, fr, rl, rr = motor_maps[w]
         if callable(send_m):
@@ -243,11 +282,7 @@ def check_wheel_spin_encoders(
         if not sim:
             time.sleep(0.05)
 
-        final_enc = (
-            get_enc().get(w, 0)
-            if callable(get_enc)
-            else transport.read().custom.get("wheel_encoders", {}).get(w, 0)
-        )
+        final_enc = get_enc().get(w, 0) if callable(get_enc) else 0
         delta = final_enc - initial_enc
         is_ok = delta > 0
 
@@ -286,7 +321,7 @@ def check_imu_rate(
     *,
     sim: bool = False,
     min_rate_hz: float = 10.0,
-    sample_window_s: float = 0.5,
+    sample_window_s: float = 2.0,
 ) -> CheckResult:
     """Verify IMU is publishing telemetry at the expected rate."""
     start_t = time.monotonic()
@@ -308,26 +343,45 @@ def check_imu_rate(
         )
 
     # Hardware check
-    get_rate = getattr(transport, "get_imu_rate", None)
-    if callable(get_rate):
-        measured_rate = get_rate()
-    else:
-        measured_rate = transport.read().custom.get("imu_rate", -1.0)
+    st = transport.status()
+    if st.state != ConnectionState.CONNECTED:
+        dur = time.monotonic() - start_t
+        return CheckResult(
+            name="imu_rate",
+            status="SKIP",
+            reason="IMU check skipped: transport not connected",
+            measurements={"rate_hz": 0.0, "state": st.state.value},
+            duration_s=dur,
+        )
 
-    # If not readily available from transport, measure over sample_window_s
-    if measured_rate < 0.0:
-        samples = 0
-        t_end = time.monotonic() + sample_window_s
-        last_theta = None
-        while time.monotonic() < t_end:
-            snap = transport.read()
-            if snap.odom and snap.odom.theta != last_theta:
-                samples += 1
-                last_theta = snap.odom.theta
-            time.sleep(0.02)
-        measured_rate = (samples - 1) / sample_window_s if samples >= 2 else 0.0
+    # Bounded wait for IMU samples: 0.0 Hz from a just-connected adapter is not final until wait expires
+    get_rate = getattr(transport, "get_imu_rate", None)
+    t_end = time.monotonic() + sample_window_s
+    measured_rate = 0.0
+
+    while True:
+        if callable(get_rate):
+            measured_rate = get_rate()
+        else:
+            measured_rate = transport.read().custom.get("imu_rate", 0.0)
+
+        if measured_rate >= min_rate_hz:
+            break
+        if time.monotonic() >= t_end:
+            break
+        time.sleep(0.05)
 
     dur = time.monotonic() - start_t
+
+    # Determine sample count within window
+    get_samples = getattr(transport, "get_imu_samples", None)
+    if callable(get_samples):
+        now = time.monotonic()
+        recent = [t for t in get_samples() if now - t <= sample_window_s]
+        samples_received = len(recent)
+    else:
+        samples_received = int(round(measured_rate * sample_window_s))
+
     if measured_rate >= min_rate_hz:
         return CheckResult(
             name="imu_rate",
@@ -336,37 +390,35 @@ def check_imu_rate(
             measurements={
                 "rate_hz": round(measured_rate, 2),
                 "min_expected_hz": min_rate_hz,
+                "samples_received": samples_received,
                 "window_s": sample_window_s,
             },
             duration_s=dur,
         )
 
     if measured_rate == 0.0:
-        # Check if hardware link is offline
-        st = transport.status()
-        if st.state != ConnectionState.CONNECTED:
-            return CheckResult(
-                name="imu_rate",
-                status="SKIP",
-                reason="IMU check skipped: transport not connected",
-                measurements={"rate_hz": 0.0, "state": st.state.value},
-                duration_s=dur,
-            )
         return CheckResult(
             name="imu_rate",
             status="FAIL",
-            reason="No IMU packets received (0.0 Hz)",
-            measurements={"rate_hz": 0.0, "min_expected_hz": min_rate_hz},
+            reason=f"No IMU packets received ({samples_received} samples received in {sample_window_s:.1f}s)",
+            measurements={
+                "rate_hz": 0.0,
+                "min_expected_hz": min_rate_hz,
+                "samples_received": samples_received,
+                "window_s": sample_window_s,
+            },
             duration_s=dur,
         )
 
     return CheckResult(
         name="imu_rate",
         status="FAIL",
-        reason=f"IMU rate {measured_rate:.1f} Hz is below minimum {min_rate_hz:.1f} Hz",
+        reason=f"IMU rate {measured_rate:.1f} Hz is below minimum {min_rate_hz:.1f} Hz ({samples_received} samples received in {sample_window_s:.1f}s)",
         measurements={
             "rate_hz": round(measured_rate, 2),
             "min_expected_hz": min_rate_hz,
+            "samples_received": samples_received,
+            "window_s": sample_window_s,
         },
         duration_s=dur,
     )
@@ -420,18 +472,25 @@ def check_sts3215_servos(
     for s in servos:
         sid = s.get("id")
         name = s.get("name", f"servo_{sid}")
-        v = s.get("voltage", 0.0)
-        temp = s.get("temperature", 0.0)
+        v = s.get("voltage")
+        temp = s.get("temperature")
+        pos = s.get("position")
         online = s.get("online", False)
 
         if not online:
             issues.append(f"Servo {sid} ({name}) offline")
             continue
-        if v < min_voltage_v or v > max_voltage_v:
+        if pos is None:
+            issues.append(f"Servo {sid} ({name}) missing position reading")
+        if v is None:
+            issues.append(f"Servo {sid} ({name}) missing voltage reading")
+        elif v < min_voltage_v or v > max_voltage_v:
             issues.append(
                 f"Servo {sid} voltage {v:.1f}V out of range [{min_voltage_v}, {max_voltage_v}]V"
             )
-        if temp > max_temp_c:
+        if temp is None:
+            issues.append(f"Servo {sid} ({name}) missing temperature reading")
+        elif temp > max_temp_c:
             issues.append(
                 f"Servo {sid} temperature {temp:.1f}°C exceeds {max_temp_c}°C"
             )
@@ -506,10 +565,17 @@ def check_camera_frames(
     cap = cv2.VideoCapture(camera_idx)
     if not cap.isOpened():
         dur = time.monotonic() - start_t
+        if os.name == "nt":
+            status = "SKIP"
+            reason = f"No camera found at index {camera_idx} via OpenCV probe"
+        else:
+            dev_node = f"/dev/video{camera_idx}"
+            status = "SKIP" if not os.path.exists(dev_node) else "FAIL"
+            reason = f"Could not open camera device index {camera_idx}"
         return CheckResult(
             name="camera_frames",
-            status="SKIP" if not os.path.exists(f"/dev/video{camera_idx}") else "FAIL",
-            reason=f"Could not open camera device index {camera_idx}",
+            status=status,
+            reason=reason,
             measurements={"camera_idx": camera_idx, "opened": False},
             duration_s=dur,
         )
@@ -575,8 +641,6 @@ def run_selftest(
     """Run all hardware self-test checks and return a complete SelfTestReport."""
     start_time = datetime.datetime.now(datetime.timezone.utc)
     t_start = time.monotonic()
-    mode_str = "sim" if sim else "hardware"
-
     spec = get_spec(robot)
     tp = transport
     owned_transport = False
@@ -589,15 +653,62 @@ def run_selftest(
             # Build hardware transport (composite for OmniBot)
             from .adapters import resolve_transport
 
-            uri = (
-                f"serial://{base_port},{arm_port}"
-                if base_port
-                else "serial:///dev/ttyUSB0,/dev/ttyACM0"
-            )
+            b_port = base_port or "/dev/ttyUSB0"
+            a_port = arm_port or "/dev/ttyACM0"
+            uri = f"serial://{b_port},{a_port}"
             try:
                 tp = resolve_transport(uri, spec)
-            except Exception:
-                tp = SimTransport(spec)
+            except Exception as e:
+                err_msg = f"Failed to initialize hardware transport: {e}"
+                c_fail = CheckResult(
+                    name="serial_link",
+                    status="FAIL",
+                    reason=err_msg,
+                    measurements={"error": str(e)},
+                )
+                checks_map = {
+                    "serial_link": c_fail,
+                    "wheel_spin_encoders": CheckResult(
+                        name="wheel_spin_encoders",
+                        status="SKIP",
+                        reason="Hardware transport failed to initialize",
+                    ),
+                    "imu_rate": CheckResult(
+                        name="imu_rate",
+                        status="SKIP",
+                        reason="Hardware transport failed to initialize",
+                    ),
+                    "sts3215_servos": CheckResult(
+                        name="sts3215_servos",
+                        status="SKIP",
+                        reason="Hardware transport failed to initialize",
+                    ),
+                    "camera_frames": CheckResult(
+                        name="camera_frames",
+                        status="SKIP",
+                        reason="Hardware transport failed to initialize",
+                    ),
+                }
+                report = SelfTestReport(
+                    timestamp=start_time.isoformat(),
+                    robot=robot,
+                    mode="hardware",
+                    overall_status="FAIL",
+                    summary={
+                        "total": len(checks_map),
+                        "passed": 0,
+                        "failed": 1,
+                        "skipped": 4,
+                        "duration_s": round(time.monotonic() - t_start, 4),
+                        "transport_error": str(e),
+                    },
+                    checks=checks_map,
+                )
+                if out_path:
+                    save_report_json(report, out_path)
+                raise RuntimeError(err_msg) from e
+
+    mode_str = "sim" if isinstance(tp, SimTransport) else ("sim" if sim else "hardware")
 
     try:
         connect_fn = getattr(tp, "connect", None)
@@ -655,6 +766,8 @@ def run_selftest(
         "skipped": n_skip,
         "duration_s": round(total_duration, 4),
     }
+    if mode_str == "hardware" and n_pass == 0 and n_fail == 0:
+        summary["all_skipped"] = True
 
     report = SelfTestReport(
         timestamp=start_time.isoformat(),
@@ -697,5 +810,13 @@ def format_report_text(report: SelfTestReport) -> str:
         f"Summary: {s['passed']} passed, {s['failed']} failed, {s['skipped']} skipped "
         f"({s['total']} total) in {s['duration_s']:.2f}s"
     )
+    if (
+        report.mode == "hardware"
+        and s.get("passed", 0) == 0
+        and s.get("failed", 0) == 0
+    ):
+        lines.append(
+            "WARNING: All checks were SKIPPED in hardware mode (no hardware verified)."
+        )
     lines.append("=" * 64)
     return "\n".join(lines)

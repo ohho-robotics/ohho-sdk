@@ -50,12 +50,6 @@ class YahboomTransport(BaseTransport):
         self._connected_since: Optional[float] = None
         self._buf = bytearray()
         self._last_vel_t: Optional[float] = None
-        self._wheel_encoders: dict[str, int] = {
-            "front_left": 0,
-            "front_right": 0,
-            "rear_left": 0,
-            "rear_right": 0,
-        }
         self._imu_timestamps: list[float] = []
         self._thread: Optional[threading.Thread] = None
         self._stop = threading.Event()
@@ -141,7 +135,11 @@ class YahboomTransport(BaseTransport):
         return self._snapshot()
 
     def get_wheel_encoders(self) -> dict[str, int]:
-        return dict(self._wheel_encoders)
+        # Yahboom Rosmaster X3 serial protocol does not report raw encoder counts.
+        return {}
+
+    def get_imu_samples(self) -> list[float]:
+        return list(self._imu_timestamps)
 
     def get_imu_rate(self) -> float:
         now = time.monotonic()
@@ -149,7 +147,7 @@ class YahboomTransport(BaseTransport):
         if len(recent) < 2:
             return 0.0
         duration = recent[-1] - recent[0]
-        return len(recent) / duration if duration > 0 else 0.0
+        return (len(recent) - 1) / duration if duration > 0 else 0.0
 
     def _snapshot(self) -> Telemetry:
         o = self._odom
@@ -157,7 +155,6 @@ class YahboomTransport(BaseTransport):
             odom=Odometry(o.x, o.y, o.theta, o.vx, o.vy, o.omega),
             battery=self._battery,
             custom={
-                "wheel_encoders": dict(self._wheel_encoders),
                 "imu_rate": self.get_imu_rate(),
             },
         )
@@ -187,29 +184,18 @@ class YahboomTransport(BaseTransport):
                     self._odom.x += (self._odom.vx * c - self._odom.vy * s) * dt
                     self._odom.y += (self._odom.vx * s + self._odom.vy * c) * dt
                     self._odom.theta += self._odom.omega * dt
-
-                    # Mecanum wheel kinematics: L = (lx + ly) ~ 0.1075 m
-                    geom = 0.1075 * self._odom.omega
-                    v_fl = self._odom.vx - self._odom.vy - geom
-                    v_fr = self._odom.vx + self._odom.vy + geom
-                    v_rl = self._odom.vx + self._odom.vy - geom
-                    v_rr = self._odom.vx - self._odom.vy + geom
-                    # Scale ~2000 ticks/m
-                    self._wheel_encoders["front_left"] += int(v_fl * dt * 2000)
-                    self._wheel_encoders["front_right"] += int(v_fr * dt * 2000)
-                    self._wheel_encoders["rear_left"] += int(v_rl * dt * 2000)
-                    self._wheel_encoders["rear_right"] += int(v_rr * dt * 2000)
                 self._last_vel_t = now
                 self._odom.vx, self._odom.vy, self._odom.omega = pkt.vx, pkt.vy, pkt.vz
             elif isinstance(
                 pkt,
                 (proto.ImuAttitudePacket, proto.ImuGyroPacket, proto.ImuAccelPacket),
             ):
-                self._imu_timestamps.append(now)
-                if len(self._imu_timestamps) > 100:
-                    self._imu_timestamps = self._imu_timestamps[-50:]
                 if isinstance(pkt, proto.ImuAttitudePacket):
                     self._odom.theta = pkt.yaw
+                    # Track single IMU stream (attitude) for publication rate calculation
+                    self._imu_timestamps.append(now)
+                    if len(self._imu_timestamps) > 100:
+                        self._imu_timestamps = self._imu_timestamps[-50:]
         self._emit_telemetry(self._snapshot())
 
     def _start_reader(self) -> None:

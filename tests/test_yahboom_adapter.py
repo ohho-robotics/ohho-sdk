@@ -1,3 +1,4 @@
+import struct
 import unittest
 
 from ohho.adapters import _yahboom_proto as proto
@@ -104,15 +105,36 @@ class TestYahboomAdapter(unittest.TestCase):
         finally:
             tp.disconnect()
 
-    def test_wheel_encoders_integrated(self):
+    def test_wheel_encoders_not_derived_from_velocity(self):
         fs = FakeSerial()
         tp = _tp(fs)
         tp._ingest(make_rx_velocity(0.2, 0.0, 0.0))
         tp._ingest(make_rx_velocity(0.2, 0.0, 0.0))
+        # Finding 1: Yahboom protocol does not report raw encoder counts;
+        # adapter must never derive synthetic encoder counts from velocity packets.
         encs = tp.get_wheel_encoders()
-        for w in ["front_left", "front_right", "rear_left", "rear_right"]:
-            self.assertIn(w, encs)
-            self.assertGreaterEqual(encs[w], 0)
+        self.assertEqual(encs, {})
+
+    def test_imu_single_stream_timestamps(self):
+        # Finding 2: Only attitude packets update IMU timestamps to prevent 3x count from burst packets
+        fs = FakeSerial()
+        tp = _tp(fs)
+
+        # Helper to construct an RX packet
+        def make_pkt(pkt_type: int, payload: bytes) -> bytes:
+            length = 3 + len(payload)
+            body = bytes([length, pkt_type]) + payload
+            cs = sum(body) & 0xFF
+            return bytes([proto.HEAD_TX, proto.HEAD_RX]) + body + bytes([cs])
+
+        # Accel and Gyro should not append to _imu_timestamps
+        tp._ingest(make_pkt(proto.TYPE_ACCEL, struct.pack("<hhh", 100, 200, 300)))
+        tp._ingest(make_pkt(proto.TYPE_GYRO, struct.pack("<hhh", 10, 20, 30)))
+        self.assertEqual(len(tp.get_imu_samples()), 0)
+
+        # Attitude packet should append
+        tp._ingest(make_pkt(proto.TYPE_ATTITUDE, struct.pack("<hhh", 0, 0, 1000)))
+        self.assertEqual(len(tp.get_imu_samples()), 1)
 
 
 if __name__ == "__main__":

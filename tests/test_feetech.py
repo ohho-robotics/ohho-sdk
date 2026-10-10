@@ -174,6 +174,36 @@ class TestFeetechAdapter(unittest.TestCase):
         finally:
             tp.disconnect()
 
+    def test_read_servo_diagnostics_missing_registers_no_defaults(self):
+        # Finding 3: If registers fail to read, voltage/temp/position must be None (no default 7.4V / 28C)
+        # and online must be True ONLY if that specific servo responded.
+        class IncompleteBus(FakeFeetechBus):
+            def read(self, key: str) -> dict:
+                if key == "Present_Position":
+                    # Only first 5 joints respond
+                    return {n: HOME_TICKS for n in _OMNIBOT_JOINTS[:5]}
+                return {}  # Voltage and temperature registers fail to read
+
+        bus = IncompleteBus()
+        tp = _transport(bus)
+        tp.connect()
+        try:
+            diags = tp.read_servo_diagnostics()
+            self.assertEqual(len(diags), 6)
+            for d in diags[:5]:
+                self.assertTrue(d["online"])
+                self.assertIsNotNone(d["position"])
+                self.assertIsNone(d["voltage"])
+                self.assertIsNone(d["temperature"])
+            # 6th servo was not in Present_Position
+            d6 = diags[5]
+            self.assertFalse(d6["online"])
+            self.assertIsNone(d6["position"])
+            self.assertIsNone(d6["voltage"])
+            self.assertIsNone(d6["temperature"])
+        finally:
+            tp.disconnect()
+
 
 if __name__ == "__main__":
     unittest.main()

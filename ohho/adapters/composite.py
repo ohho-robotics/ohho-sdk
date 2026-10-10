@@ -110,6 +110,12 @@ class CompositeTransport(BaseTransport):
             return get_imu()
         return 0.0
 
+    def get_imu_samples(self) -> list[float]:
+        get_s = getattr(self._base, "get_imu_samples", None)
+        if callable(get_s):
+            return get_s()
+        return []
+
     def read_servo_diagnostics(self) -> list[dict]:
         read_diag = getattr(self._arm, "read_servo_diagnostics", None)
         if callable(read_diag):

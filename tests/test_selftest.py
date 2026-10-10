@@ -15,6 +15,8 @@ from ohho.registry import get_spec
 from ohho.schema import ConnectionState, Odometry, Telemetry, TransportStatus
 from ohho.selftest import (
     CheckResult,
+    SelfTestReport,
+    _port_exists,
     check_camera_frames,
     check_imu_rate,
     check_serial_link,
@@ -152,6 +154,10 @@ class TestSelfTestUnitChecks(unittest.TestCase):
 
     def test_check_imu_rate_hardware_pass(self):
         fake_tp = MagicMock()
+        fake_tp.status.return_value = TransportStatus(
+            protocol="serial",
+            state=ConnectionState.CONNECTED,
+        )
         fake_tp.get_imu_rate.return_value = 25.0
         res = check_imu_rate(fake_tp, sim=False, min_rate_hz=10.0)
         self.assertEqual(res.status, "PASS")
@@ -159,8 +165,12 @@ class TestSelfTestUnitChecks(unittest.TestCase):
 
     def test_check_imu_rate_hardware_low_fail(self):
         fake_tp = MagicMock()
+        fake_tp.status.return_value = TransportStatus(
+            protocol="serial",
+            state=ConnectionState.CONNECTED,
+        )
         fake_tp.get_imu_rate.return_value = 4.5
-        res = check_imu_rate(fake_tp, sim=False, min_rate_hz=10.0)
+        res = check_imu_rate(fake_tp, sim=False, min_rate_hz=10.0, sample_window_s=0.05)
         self.assertEqual(res.status, "FAIL")
         self.assertIn("below minimum", res.reason)
 
@@ -414,6 +424,239 @@ class TestSelfTestReportAndRunner(unittest.TestCase):
             self.assertEqual(report.checks["serial_link"].status, "SKIP")
             self.assertIn("pyserial", report.checks["serial_link"].reason)
             self.assertNotEqual(report.overall_status, "FAIL")
+
+
+class TestSelftestHonestyBugbotRegressions(unittest.TestCase):
+    """Explicit regression tests for Bugbot review findings on PR #9 (OHH-87)."""
+
+    # ── Finding 1: Hardware encoders are not real ticks ──────────────────────
+    def test_finding_1_wheel_spin_skips_when_encoders_not_available(self):
+        fake_tp = MagicMock()
+        fake_tp.status.return_value = TransportStatus(
+            protocol="serial",
+            state=ConnectionState.CONNECTED,
+        )
+        fake_tp.get_wheel_encoders.return_value = {}  # Yahboom adapter returns empty dict
+        res = check_wheel_spin_encoders(fake_tp, sim=False, allow_spin=True)
+        self.assertEqual(res.status, "SKIP")
+        self.assertEqual(res.reason, "encoder counts not available from this adapter")
+
+    # ── Finding 2: IMU check fails without samples ───────────────────────────
+    def test_finding_2_imu_rate_bounded_wait_eventual_success(self):
+        fake_tp = MagicMock()
+        fake_tp.status.return_value = TransportStatus(
+            protocol="serial",
+            state=ConnectionState.CONNECTED,
+        )
+        rates = [0.0, 0.0, 25.0]
+
+        def get_rate():
+            return rates.pop(0) if rates else 25.0
+
+        fake_tp.get_imu_rate = get_rate
+        fake_tp.get_imu_samples.return_value = []
+        res = check_imu_rate(fake_tp, sim=False, min_rate_hz=10.0, sample_window_s=0.5)
+        self.assertEqual(res.status, "PASS")
+        self.assertEqual(res.measurements["rate_hz"], 25.0)
+
+    def test_finding_2_imu_rate_fails_after_wait_with_sample_count(self):
+        fake_tp = MagicMock()
+        fake_tp.status.return_value = TransportStatus(
+            protocol="serial",
+            state=ConnectionState.CONNECTED,
+        )
+        fake_tp.get_imu_rate.return_value = 0.0
+        fake_tp.get_imu_samples.return_value = []
+        res = check_imu_rate(fake_tp, sim=False, min_rate_hz=10.0, sample_window_s=0.05)
+        self.assertEqual(res.status, "FAIL")
+        self.assertIn("0 samples received in", res.reason)
+        self.assertEqual(res.measurements["samples_received"], 0)
+
+    # ── Finding 3: Servo diagnostics hide missing readings ───────────────────
+    def test_finding_3_servos_fail_on_missing_readings_no_defaults(self):
+        fake_tp = MagicMock()
+        fake_tp.status.return_value = TransportStatus(
+            protocol="feetech", state=ConnectionState.CONNECTED
+        )
+        # Servo 1 missing voltage, Servo 2 missing temp, Servo 3 missing position, Servo 4 offline
+        fake_tp.read_servo_diagnostics.return_value = [
+            {
+                "id": 1,
+                "name": "j1",
+                "voltage": None,
+                "temperature": 30.0,
+                "position": 0.0,
+                "online": True,
+            },
+            {
+                "id": 2,
+                "name": "j2",
+                "voltage": 7.4,
+                "temperature": None,
+                "position": 0.0,
+                "online": True,
+            },
+            {
+                "id": 3,
+                "name": "j3",
+                "voltage": 7.4,
+                "temperature": 30.0,
+                "position": None,
+                "online": True,
+            },
+            {
+                "id": 4,
+                "name": "j4",
+                "voltage": 7.4,
+                "temperature": 30.0,
+                "position": 0.0,
+                "online": False,
+            },
+            {
+                "id": 5,
+                "name": "j5",
+                "voltage": 7.4,
+                "temperature": 30.0,
+                "position": 0.0,
+                "online": True,
+            },
+            {
+                "id": 6,
+                "name": "j6",
+                "voltage": 7.4,
+                "temperature": 30.0,
+                "position": 0.0,
+                "online": True,
+            },
+        ]
+        res = check_sts3215_servos(fake_tp, sim=False)
+        self.assertEqual(res.status, "FAIL")
+        self.assertIn("Servo 1 (j1) missing voltage reading", res.reason)
+        self.assertIn("Servo 2 (j2) missing temperature reading", res.reason)
+        self.assertIn("Servo 3 (j3) missing position reading", res.reason)
+        self.assertIn("Servo 4 (j4) offline", res.reason)
+
+    # ── Finding 4: Arm port flag ignored alone ────────────────────────────────
+    def test_finding_4_arm_port_works_alone(self):
+        with patch("ohho.adapters.resolve_transport") as mock_resolve:
+            mock_resolve.return_value = SimTransport(get_spec("omnibot"))
+            run_selftest("omnibot", sim=False, arm_port="/dev/custom_arm")
+            self.assertTrue(mock_resolve.called)
+            uri = mock_resolve.call_args[0][0]
+            self.assertEqual(uri, "serial:///dev/ttyUSB0,/dev/custom_arm")
+
+    def test_finding_4_base_port_works_alone(self):
+        with patch("ohho.adapters.resolve_transport") as mock_resolve:
+            mock_resolve.return_value = SimTransport(get_spec("omnibot"))
+            run_selftest("omnibot", sim=False, base_port="/dev/custom_base")
+            self.assertTrue(mock_resolve.called)
+            uri = mock_resolve.call_args[0][0]
+            self.assertEqual(uri, "serial:///dev/custom_base,/dev/ttyACM0")
+
+    # ── Finding 5: Windows device checks always skip ──────────────────────────
+    def test_finding_5_windows_com_port_detection_and_link_status(self):
+        mock_serial = MagicMock()
+        mock_tools = MagicMock()
+        mock_list_ports = MagicMock()
+        mock_port = MagicMock()
+        mock_port.device = "COM3"
+        mock_list_ports.comports.return_value = [mock_port]
+        mock_tools.list_ports = mock_list_ports
+        mock_serial.tools = mock_tools
+
+        with patch.dict(
+            "sys.modules",
+            {
+                "serial": mock_serial,
+                "serial.tools": mock_tools,
+                "serial.tools.list_ports": mock_list_ports,
+            },
+        ):
+            self.assertTrue(_port_exists("COM3"))
+            self.assertTrue(_port_exists(r"\\.\COM3"))
+            self.assertFalse(_port_exists("COM99"))
+
+            fake_tp = MagicMock()
+            fake_tp.protocol = "serial"
+            fake_tp.port = "COM3"
+            fake_tp.status.return_value = TransportStatus(
+                protocol="serial",
+                state=ConnectionState.DISCONNECTED,
+            )
+            # Present on system but disconnected -> FAIL
+            res_fail = check_serial_link(fake_tp, sim=False, base_port="COM3")
+            self.assertEqual(res_fail.status, "FAIL")
+
+            # Not present on system -> SKIP
+            fake_tp.port = "COM99"
+            res_skip = check_serial_link(fake_tp, sim=False, base_port="COM99")
+            self.assertEqual(res_skip.status, "SKIP")
+
+    def test_finding_5_windows_camera_probe_and_capture(self):
+        mock_cv2 = MagicMock()
+        mock_cap = MagicMock()
+        mock_cv2.VideoCapture.return_value = mock_cap
+
+        with patch("os.name", "nt"), patch.dict("sys.modules", {"cv2": mock_cv2}):
+            # Camera probe fails to open device -> SKIP with probe reason
+            mock_cap.isOpened.return_value = False
+            res_probe = check_camera_frames(sim=False, camera_idx=2)
+            self.assertEqual(res_probe.status, "SKIP")
+            self.assertIn(
+                "No camera found at index 2 via OpenCV probe", res_probe.reason
+            )
+
+            # Camera device opens but fails to stream frames -> FAIL
+            mock_cap.isOpened.return_value = True
+            mock_cap.read.return_value = (False, None)
+            res_fail = check_camera_frames(sim=False, camera_idx=2, required_frames=3)
+            self.assertEqual(res_fail.status, "FAIL")
+            self.assertIn("Captured only 0/3 frames", res_fail.reason)
+
+    # ── Finding 6: Hardware mode falls back to sim ────────────────────────────
+    def test_finding_6_hardware_mode_never_falls_back_to_sim(self):
+        with patch(
+            "ohho.adapters.resolve_transport", side_effect=RuntimeError("port busy")
+        ):
+            with tempfile.TemporaryDirectory() as tmpdir:
+                out_path = os.path.join(tmpdir, "hardware-fail.json")
+                with self.assertRaises(RuntimeError) as cm:
+                    run_selftest("omnibot", sim=False, out_path=out_path)
+                self.assertIn(
+                    "Failed to initialize hardware transport", str(cm.exception)
+                )
+                self.assertTrue(os.path.exists(out_path))
+                with open(out_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                self.assertEqual(data["mode"], "hardware")
+                self.assertEqual(data["overall_status"], "FAIL")
+                self.assertEqual(data["summary"]["failed"], 1)
+
+    def test_finding_6_cli_hardware_all_skip_exits_code_3(self):
+        all_skip_report = SelfTestReport(
+            timestamp="2026-10-03T12:00:00Z",
+            robot="omnibot",
+            mode="hardware",
+            overall_status="PASS",
+            summary={
+                "total": 5,
+                "passed": 0,
+                "failed": 0,
+                "skipped": 5,
+                "duration_s": 0.1,
+            },
+            checks={},
+        )
+        with patch("ohho.selftest.run_selftest", return_value=all_skip_report):
+            with tempfile.TemporaryDirectory() as tmpdir:
+                out_f = os.path.join(tmpdir, "skip-report.json")
+                code = main(["selftest", "--allow-spin", "--out", out_f])
+                self.assertEqual(code, 3)
+
+                code_allowed = main(
+                    ["selftest", "--allow-spin", "--allow-all-skip", "--out", out_f]
+                )
+                self.assertEqual(code_allowed, 0)
 
 
 if __name__ == "__main__":
