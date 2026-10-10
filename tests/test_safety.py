@@ -1447,6 +1447,16 @@ class TestFailClosedEdges(GateCase):
         self.assertIsInstance(rec["obj"], str)
 
 
+class TestAgentsCannotArmOrRelease(unittest.TestCase):
+    def test_agent_tool_and_skill_sources_never_arm_or_release(self):
+        root = Path(safety.__file__).resolve().parent
+        for module in ("brains.py", "market.py", "agent.py"):
+            src = (root / module).read_text(encoding="utf-8")
+            with self.subTest(module=module):
+                self.assertNotIn("release_stop", src)
+                self.assertNotIn(".arm(", src)
+
+
 class TestCliSafetyFlags(unittest.TestCase):
     def test_flags_parse_and_reach_robot_connect(self):
         from ohho import cli
