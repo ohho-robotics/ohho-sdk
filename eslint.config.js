@@ -23,8 +23,6 @@ export default tseslint.config(
     ignores: [
       "**/dist/**",
       "node_modules/**",
-      "packages/connect/src/mcp-tools.ts",
-      "packages/mcp/src/lib/**",
     ],
   },
 );
