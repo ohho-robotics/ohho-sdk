@@ -1,0 +1,7 @@
+{
+  "id": "ohho.descriptor.v1",
+  "version": "1.0.0",
+  "versionPattern": "^1\\.0\\.(0|[1-9]\\d*)$",
+  "description": "Source of truth for the ohho.descriptor.v1 robot descriptor. Edit the JSON Schemas, then run npm run codegen:descriptor. Hard-cap maximums are the OmniBot ceilings and must not be raised.",
+  "messages": ["descriptor.json"]
+}

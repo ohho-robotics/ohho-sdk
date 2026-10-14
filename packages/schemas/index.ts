@@ -2,6 +2,8 @@ export * from './src/protocol';
 export * from './src/generated/transport.generated';
 export * from './src/generated/telemetry.generated';
 export * from './src/telemetry';
+export * from './src/generated/descriptor.generated';
+export * from './src/descriptor';
 export * from './src/types';
 export * from './src/robot-catalog';
 export * from './src/robot-config';
