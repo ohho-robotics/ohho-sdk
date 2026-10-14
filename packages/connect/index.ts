@@ -1,3 +1,4 @@
+export * from './src/protocol-connect';
 export * from './src/factory';
 export * from './src/types';
 export * from './src/protocols';

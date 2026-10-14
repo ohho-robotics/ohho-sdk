@@ -1,3 +1,5 @@
+export * from './src/protocol';
+export * from './src/generated/transport.generated';
 export * from './src/types';
 export * from './src/robot-catalog';
 export * from './src/robot-config';
