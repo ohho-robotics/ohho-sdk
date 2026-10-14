@@ -10,7 +10,7 @@
  *   ({"cmd_vel":{...}}), and incoming JSON lines are surfaced as telemetry.
  */
 
-import type { RobotConfig } from "@/lib/garage/robot-config";
+import type { RobotConfig } from "@ohho/schemas";
 import {
   HEAD_RX,
   TYPE_VELOCITY,
@@ -208,7 +208,11 @@ export class WebSerialTransport implements RobotTransport {
         if (done) break;
         if (value) {
           this._msgCount++;
-          this._yahboom ? this._consumeYahboom(value) : this._consumeText(value);
+          if (this._yahboom) {
+            this._consumeYahboom(value);
+          } else {
+            this._consumeText(value);
+          }
         }
       }
     } catch {

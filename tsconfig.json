@@ -1,11 +1,8 @@
 {
-  "compilerOptions": {
-    "target": "ES2022",
-    "module": "CommonJS",
-    "declaration": true,
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
-  }
+  "files": [],
+  "references": [
+    { "path": "./packages/schemas" },
+    { "path": "./packages/connect" },
+    { "path": "./packages/client" }
+  ]
 }

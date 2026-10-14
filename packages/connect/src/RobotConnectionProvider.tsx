@@ -26,9 +26,9 @@ import {
   getRobotConfig,
   defaultRobotConfig,
   type RobotConfig,
-} from "@/lib/garage/robot-config";
-import type { UserRobot } from "@/lib/garage/types";
-import { createTransport } from "./factory";
+} from "@ohho/schemas";
+import type { UserRobot } from "@ohho/schemas";
+import { connectTransport } from "./protocol-connect";
 import { persistConnectionConfig } from "./config";
 import type {
   ConnectionConfig,
@@ -102,19 +102,17 @@ export function RobotConnectionProvider({ children }: { children: React.ReactNod
     async (target: UserRobot, cfg: ConnectionConfig): Promise<TransportStatus> => {
       teardown();
       const rc = getRobotConfig(target.hardwareModelId) ?? defaultRobotConfig();
-      const transport = createTransport(rc, cfg);
-      transportRef.current = transport;
-      unsubsRef.current.push(transport.onStatus((s) => setStatus(s)));
-      unsubsRef.current.push(transport.onTelemetry((t) => setTelemetry(t)));
-
       setRobot(target);
       setConfig(rc);
       setProtocol(cfg.protocol);
       setEStop(false);
       setTelemetry(null);
-      setStatus(transport.getStatus());
 
-      const result = await transport.connect();
+      const { transport, status: result } = await connectTransport(rc, cfg);
+      transportRef.current = transport;
+      unsubsRef.current.push(transport.onStatus((s) => setStatus(s)));
+      unsubsRef.current.push(transport.onTelemetry((t) => setTelemetry(t)));
+      setStatus(transport.getStatus());
       if (result.state === "connected") {
         void persistConnectionConfig(target, { ...cfg, lastConnectedAt: new Date().toISOString() });
       }
