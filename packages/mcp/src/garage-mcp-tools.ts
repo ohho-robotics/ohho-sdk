@@ -20,11 +20,11 @@ import {
   jsonResult,
   errorResult,
   type InputSchema, type JsonSchemaProperty,
-} from "@/lib/mcp/types";
-import { getUserRobots, addUserRobot, deleteUserRobot, updateUserRobot } from "@/lib/garage/client";
-import { CATEGORIES, type RobotCategoryId } from "@/lib/garage/types";
-import { getHardwareModel, getRobotTypeForHardware } from "@/lib/garage/robot-catalog";
-import { getRobotConfig, defaultRobotConfig } from "@/lib/garage/robot-config";
+} from "./types";
+import { getUserRobots, addUserRobot, deleteUserRobot, updateUserRobot } from "@ohho/schemas";
+import { CATEGORIES } from "@ohho/schemas";
+import { getHardwareModel } from "@ohho/schemas";
+import { getRobotConfig, defaultRobotConfig } from "@ohho/schemas";
 
 const s = (
   props: Record<string, JsonSchemaProperty>,

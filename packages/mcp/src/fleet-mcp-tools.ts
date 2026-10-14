@@ -16,8 +16,8 @@ import {
   errorResult,
   type InputSchema,
   type JsonSchemaProperty,
-} from "@/lib/mcp/types";
-import { generateInitialFleet, INITIAL_ALERTS, VERSIONS, type RobotStatus } from "@/lib/fleet/fleet";
+} from "./types";
+import { generateInitialFleet, INITIAL_ALERTS, VERSIONS } from "./lib/fleet/fleet";
 
 const s = (props: Record<string, JsonSchemaProperty>, required: string[] = []): InputSchema => ({ type: "object", properties: props, required });
 

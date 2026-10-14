@@ -5,10 +5,10 @@
 import {
   type ToolDefinition, type InputSchema, type JsonSchemaProperty,
   jsonResult, errorResult,
-} from "@/lib/mcp/types";
-import { PARTS, CATEGORIES, ENVIRONMENTS, getPart, partsByCategory, categoryMeta, type Category } from "@/lib/build/catalog";
-import { sanitize, TEMPLATES, type Selection, type Requirements } from "@/lib/build/design";
-import { computeMetrics, validate, recommend, overallStatus } from "@/lib/build/engine";
+} from "./types";
+import { PARTS, CATEGORIES, ENVIRONMENTS, getPart, partsByCategory, type Category } from "./lib/build/catalog";
+import { sanitize, TEMPLATES, type Selection, type Requirements } from "./lib/build/design";
+import { computeMetrics, validate, recommend, overallStatus } from "./lib/build/engine";
 
 const s = (props: Record<string, JsonSchemaProperty>, required: string[] = []): InputSchema =>
   ({ type: "object", properties: props, required });
@@ -89,7 +89,7 @@ export const tools: ToolDefinition[] = [
       const metrics = computeMetrics(design);
       const checks = validate(design, metrics);
       const recs = recommend(design, metrics);
-      const { parts, ...metricSummary } = metrics;
+      const { parts: _parts, ...metricSummary } = metrics;
       return jsonResult({
         design,
         status: overallStatus(checks),

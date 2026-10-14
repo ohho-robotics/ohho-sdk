@@ -1,3 +1,7 @@
+export * from './src/types';
+export * from './src/robot-catalog';
 export * from './src/robot-config';
 export * from './src/vr-manifest';
 export * from './src/market-skills';
+export * from './src/product-types';
+export * from './src/garage-client';

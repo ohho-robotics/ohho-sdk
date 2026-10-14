@@ -5,8 +5,8 @@
 import {
   type ToolDefinition, type InputSchema, type JsonSchemaProperty,
   jsonResult, errorResult,
-} from "@/lib/mcp/types";
-import { type RequirementStatus } from "@/lib/comply/standards";
+} from "./types";
+type RequirementStatus = "done" | "review" | "open";
 
 // The standards data is defined inside the useCompliance hook as INITIAL_STANDARDS.
 // We replicate the static data here so MCP tools can serve it without React.
