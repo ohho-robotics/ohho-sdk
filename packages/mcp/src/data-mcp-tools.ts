@@ -5,7 +5,7 @@
 import {
   type ToolDefinition, type InputSchema, type JsonSchemaProperty,
   jsonResult, errorResult,
-} from "@/lib/mcp/types";
+} from "./types";
 
 // Representative episode catalog (the live catalog is robot-config-aware and browser-side)
 const EPISODES = [

@@ -5,8 +5,8 @@
 import {
   type ToolDefinition, type InputSchema, type JsonSchemaProperty,
   jsonResult, errorResult,
-} from "@/lib/mcp/types";
-import { INITIAL_DEVICES, INITIAL_CVES } from "@/lib/shield/security";
+} from "./types";
+import { INITIAL_DEVICES, INITIAL_CVES } from "./lib/shield/security";
 
 const s = (props: Record<string, JsonSchemaProperty>, required: string[] = []): InputSchema =>
   ({ type: "object", properties: props, required });

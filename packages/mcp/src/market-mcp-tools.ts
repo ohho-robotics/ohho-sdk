@@ -19,8 +19,8 @@ import {
   errorResult,
   type InputSchema,
   type JsonSchemaProperty,
-} from "@/lib/mcp/types";
-import { SKILLS, AUTHORS, MARKETPLACE_STATS, getSkill, getAuthor } from "@/lib/market/skills";
+} from "./types";
+import { SKILLS, AUTHORS, MARKETPLACE_STATS, getSkill, getAuthor } from "@ohho/schemas";
 
 const s = (props: Record<string, JsonSchemaProperty>, required: string[] = []): InputSchema => ({ type: "object", properties: props, required });
 

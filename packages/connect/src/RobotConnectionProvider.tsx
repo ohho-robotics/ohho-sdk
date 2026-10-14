@@ -26,8 +26,8 @@ import {
   getRobotConfig,
   defaultRobotConfig,
   type RobotConfig,
-} from "@/lib/garage/robot-config";
-import type { UserRobot } from "@/lib/garage/types";
+} from "@ohho/schemas";
+import type { UserRobot } from "@ohho/schemas";
 import { createTransport } from "./factory";
 import { persistConnectionConfig } from "./config";
 import type {

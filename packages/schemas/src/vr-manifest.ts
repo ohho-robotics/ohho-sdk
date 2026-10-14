@@ -19,7 +19,7 @@
  * committed public/vr/manifest.json can be drift-checked in manifest.test.ts.
  */
 
-import { PRODUCTS, type Product, type Accent, type Category } from "@/lib/products";
+import { PRODUCTS, type Product, type Accent, type Category } from "./product-types";
 
 // ── Design tokens (mirrors the :root variables in app/globals.css) ───────────
 
