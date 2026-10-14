@@ -5,7 +5,7 @@
  * USB transport (Yahboom packets for OmniBot, JSON lines otherwise).
  */
 
-import type { RobotConfig } from "@/lib/garage/robot-config";
+import type { RobotConfig } from "@ohho/schemas";
 import { TYPE_VELOCITY, HEAD_RX, packetMotion, packetSetCarType } from "./yahboom";
 import type {
   ConnectionConfig,

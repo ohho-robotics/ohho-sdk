@@ -3,7 +3,7 @@
  * right RobotTransport. The single place that knows the protocol → class map.
  */
 
-import type { RobotConfig } from "@/lib/garage/robot-config";
+import type { RobotConfig } from "@ohho/schemas";
 import { RosbridgeTransport } from "./rosbridge";
 import { WebSerialTransport } from "./webserial";
 import { WebBluetoothTransport } from "./webbluetooth";

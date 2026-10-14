@@ -19,26 +19,26 @@
 import type { ToolDefinition, ResourceDefinition, PromptDefinition } from "./types";
 
 // ── Product imports ───────────────────────────────────────────────────────────
-import { tools as garageTools, resources as garageResources } from "@/lib/garage/mcp-tools";
-import { tools as connectTools } from "@/lib/connect/mcp-tools";
-import { tools as bridgeTools, resources as bridgeResources } from "@/lib/bridge/mcp-tools";
-import { tools as marketTools, resources as marketResources } from "@/lib/market/mcp-tools";
-import { tools as twinTools } from "@/lib/twin/mcp-tools";
-import { tools as careTools } from "@/lib/care/mcp-tools";
-import { tools as fleetTools } from "@/lib/fleet/mcp-tools";
-import { tools as serveTools } from "@/lib/serve/mcp-tools";
-import { tools as buildTools } from "@/lib/build/mcp-tools";
-import { tools as pilotTools } from "@/lib/pilot/mcp-tools";
-import { tools as shieldTools } from "@/lib/shield/mcp-tools";
-import { tools as complyTools } from "@/lib/comply/mcp-tools";
-import { tools as proofTools } from "@/lib/proof/mcp-tools";
-import { tools as frameTools } from "@/lib/frame/mcp-tools";
-import { tools as trainTools } from "@/lib/train/mcp-tools";
-import { tools as dataTools } from "@/lib/data/mcp-tools";
-import { tools as viewTools } from "@/lib/view/mcp-tools";
-import { tools as autonomyTools } from "@/lib/autonomy/mcp-tools";
-import { tools as mindTools } from "@/lib/mind/mcp-tools";
-import { tools as benchTools } from "@/lib/bench/mcp-tools";
+import { tools as garageTools, resources as garageResources } from "./garage-mcp-tools";
+import { tools as connectTools } from "./connect-mcp-tools";
+import { tools as bridgeTools, resources as bridgeResources } from "./bridge-mcp-tools";
+import { tools as marketTools, resources as marketResources } from "./market-mcp-tools";
+import { tools as twinTools } from "./twin-mcp-tools";
+import { tools as careTools } from "./care-mcp-tools";
+import { tools as fleetTools } from "./fleet-mcp-tools";
+import { tools as serveTools } from "./serve-mcp-tools";
+import { tools as buildTools } from "./build-mcp-tools";
+import { tools as pilotTools } from "./pilot-mcp-tools";
+import { tools as shieldTools } from "./shield-mcp-tools";
+import { tools as complyTools } from "./comply-mcp-tools";
+import { tools as proofTools } from "./proof-mcp-tools";
+import { tools as frameTools } from "./frame-mcp-tools";
+import { tools as trainTools } from "./train-mcp-tools";
+import { tools as dataTools } from "./data-mcp-tools";
+import { tools as viewTools } from "./view-mcp-tools";
+import { tools as autonomyTools } from "./autonomy-mcp-tools";
+import { tools as mindTools } from "./mind-mcp-tools";
+import { tools as benchTools } from "./bench-mcp-tools";
 
 // ── Registry ──────────────────────────────────────────────────────────────────
 
