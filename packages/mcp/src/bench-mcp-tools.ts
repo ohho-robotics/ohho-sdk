@@ -5,7 +5,7 @@
 import {
   type ToolDefinition, type InputSchema, type JsonSchemaProperty,
   jsonResult, errorResult,
-} from "@/lib/mcp/types";
+} from "./types";
 
 const ASSEMBLY_STEPS = [
   { id: "a1", label: "Frame & base", detail: "Bolt the base frame together", status: "done" },

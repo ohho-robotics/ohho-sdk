@@ -5,9 +5,9 @@
 import {
   type ToolDefinition, type InputSchema, type JsonSchemaProperty,
   jsonResult, errorResult,
-} from "@/lib/mcp/types";
-import { PROFILES, getProfile, DEFAULT_ARM_JOINTS, type RobotProfile } from "@/lib/pilot/robots";
-import { CONTROL_MODES, applyJoystick, zeroVelocity, type Velocity } from "@/lib/pilot/teleop";
+} from "./types";
+import { PROFILES, getProfile, DEFAULT_ARM_JOINTS } from "./lib/pilot/robots";
+import { CONTROL_MODES, applyJoystick, zeroVelocity } from "./lib/pilot/teleop";
 
 const s = (props: Record<string, JsonSchemaProperty>, required: string[] = []): InputSchema =>
   ({ type: "object", properties: props, required });

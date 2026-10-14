@@ -5,7 +5,7 @@
 import {
   type ToolDefinition, type InputSchema, type JsonSchemaProperty,
   jsonResult, errorResult,
-} from "@/lib/mcp/types";
+} from "./types";
 
 const LAYERS = [
   { id: "front-cam", name: "Front camera", topic: "/camera/front/image_raw", type: "image", visible: true, hz: 30 },

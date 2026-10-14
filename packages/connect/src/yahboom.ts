@@ -12,7 +12,8 @@
  *                 checksum reduces to (LEN + FUNC + Σpayload) & 0xFF)
  *
  * Keep this in lock-step with packages/yahboom_ros2/protocol.py and
- * confirmed_protocol.py — they are the sources of truth.
+ * confirmed_protocol.py — they are the sources of truth. Golden bytes live in
+ * packages/connect/test-vectors/yahboom-packets.json (Vitest + optional pytest).
  */
 
 export const HEAD_TX = 0xff;

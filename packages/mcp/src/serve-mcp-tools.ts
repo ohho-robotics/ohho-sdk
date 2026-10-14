@@ -5,9 +5,9 @@
 import {
   type ToolDefinition, type InputSchema, type JsonSchemaProperty,
   jsonResult, errorResult,
-} from "@/lib/mcp/types";
-import { MODELS, GPUS, DEFAULT_CONFIG, getModel, getGpu, estimate, type Backend } from "@/lib/serve/models";
-import { SCENES, predict } from "@/lib/serve/inference";
+} from "./types";
+import { MODELS, GPUS, DEFAULT_CONFIG, getModel, getGpu, estimate, type Backend } from "./lib/serve/models";
+import { SCENES, predict } from "./lib/serve/inference";
 
 const s = (props: Record<string, JsonSchemaProperty>, required: string[] = []): InputSchema =>
   ({ type: "object", properties: props, required });

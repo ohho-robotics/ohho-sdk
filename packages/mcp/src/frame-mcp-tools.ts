@@ -5,7 +5,7 @@
 import {
   type ToolDefinition, type InputSchema, type JsonSchemaProperty,
   jsonResult, errorResult,
-} from "@/lib/mcp/types";
+} from "./types";
 
 // Static process data (the live process manager runs in the browser).
 const PROCESSES = [

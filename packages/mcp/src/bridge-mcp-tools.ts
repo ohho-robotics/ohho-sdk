@@ -20,8 +20,8 @@ import {
   errorResult,
   type InputSchema,
   type JsonSchemaProperty,
-} from "@/lib/mcp/types";
-import { ADAPTERS, getAdapter, G1_JOINT_MAP, UNITREE_TOPICS } from "@/lib/bridge/adapters";
+} from "./types";
+import { ADAPTERS, getAdapter, G1_JOINT_MAP, UNITREE_TOPICS } from "./lib/bridge/adapters";
 
 const s = (props: Record<string, JsonSchemaProperty>, required: string[] = []): InputSchema => ({ type: "object", properties: props, required });
 
