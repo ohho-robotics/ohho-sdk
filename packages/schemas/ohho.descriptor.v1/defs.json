@@ -1,0 +1,318 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ohho-robotics.com/schemas/ohho.descriptor.v1/defs.json",
+  "title": "OhhoDescriptorV1Defs",
+  "$defs": {
+    "SchemaVersion": {
+      "title": "DescriptorSchemaVersion",
+      "description": "Descriptor schema semver MAJOR.MINOR.PATCH. Minor versions only add optional fields. Major versions break. This schema accepts 1.0.x.",
+      "type": "string",
+      "pattern": "^1\\.0\\.(0|[1-9]\\d*)$"
+    },
+    "RobotId": {
+      "title": "DescriptorRobotId",
+      "description": "Stable robot identifier. The same spelling as telemetry robot_id.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+    },
+    "DisplayName": {
+      "title": "DescriptorDisplayName",
+      "description": "Non-empty model name without leading or trailing whitespace.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^\\S(?:.*\\S)?$"
+    },
+    "NameToken": {
+      "title": "DescriptorNameToken",
+      "description": "Joint, arm, camera, or frame name.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z][A-Za-z0-9_./:-]{0,63}$"
+    },
+    "TopicName": {
+      "title": "DescriptorTopicName",
+      "description": "Absolute ROS topic name.",
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 256,
+      "pattern": "^/[A-Za-z][A-Za-z0-9_./-]*$"
+    },
+    "ResourceUrl": {
+      "title": "DescriptorResourceUrl",
+      "description": "package:// or http(s) URL of the robot URDF or xacro. Not a licence to load arbitrary files.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^(package://|https://|http://)\\S+$"
+    },
+    "TelemetrySchemaId": {
+      "title": "DescriptorTelemetrySchemaId",
+      "description": "Telemetry contract this robot's samples use. ohho.telemetry.v1.",
+      "type": "string",
+      "pattern": "^ohho\\.telemetry\\.v1$"
+    },
+    "Radians": {
+      "title": "DescriptorRadians",
+      "description": "Angle in radians, right-hand rule. Not degrees.",
+      "type": "number"
+    },
+    "TagId": {
+      "title": "DescriptorTagId",
+      "description": "AprilTag id. An integer, minimum 0.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "TagSizeMetres": {
+      "title": "DescriptorTagSizeMetres",
+      "description": "Printed AprilTag side length in metres. Must be greater than 0.",
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 1
+    },
+    "DriveKind": {
+      "title": "DescriptorDriveKind",
+      "description": "Base drive kind. fixed-base means the base must not be commanded.",
+      "type": "string",
+      "enum": [
+        "mecanum",
+        "differential",
+        "ackermann",
+        "skid-steer",
+        "tracked",
+        "quadruped",
+        "bipedal",
+        "fixed-base"
+      ]
+    },
+    "CameraKind": {
+      "title": "CameraKind",
+      "description": "Camera stream kind. rgb is a colour image. depth is a depth image. bev is a stitched bird's-eye image.",
+      "type": "string",
+      "enum": ["rgb", "depth", "bev"]
+    },
+    "DescriptorKind": {
+      "title": "DescriptorKind",
+      "description": "sim is a simulator. real is a physical robot. This is the telemetry sample kind, not a motion permit.",
+      "type": "string",
+      "enum": ["sim", "real"]
+    },
+    "TelemetryBlock": {
+      "title": "TelemetryBlock",
+      "description": "Optional ohho.telemetry.v1 block this robot can emit. Omitting a block here means samples omit it. It does not clear an e-stop.",
+      "type": "string",
+      "enum": ["base", "joints", "gripper", "imu", "battery", "nav", "policy", "rec", "sys"]
+    },
+    "DriveCaps": {
+      "title": "DriveCaps",
+      "description": "Advertised drive speeds. These must not exceed safety.hard. Linear caps are metres per second. Yaw is radians per second. Maximums are the OmniBot ceilings (0.2 m/s, 1.0 rad/s) and must not be raised. A tighter producer clamp stays in force.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["vx_mps", "vy_mps", "wz_rad_s"],
+      "properties": {
+        "vx_mps": {
+          "description": "Maximum forward speed in metres per second. Ceiling 0.2.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 0.2
+        },
+        "vy_mps": {
+          "description": "Maximum lateral speed in metres per second. Ceiling 0.2. Zero when the drive cannot strafe.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 0.2
+        },
+        "wz_rad_s": {
+          "description": "Maximum yaw rate in radians per second. Ceiling 1.0.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1.0
+        }
+      }
+    },
+    "DescriptorDrive": {
+      "title": "DescriptorDrive",
+      "description": "Base drive. holonomic true means the base can strafe. It is not a motion permit.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "holonomic", "caps"],
+      "properties": {
+        "kind": { "$ref": "#/$defs/DriveKind" },
+        "holonomic": {
+          "description": "True when the base can translate in the plane without a non-holonomic constraint.",
+          "type": "boolean"
+        },
+        "caps": { "$ref": "#/$defs/DriveCaps" }
+      }
+    },
+    "DescriptorJoint": {
+      "title": "DescriptorJoint",
+      "description": "One revolute joint. min, max, and home are radians. They describe the producer limit and are not a licence to widen it.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "label", "min", "max", "home"],
+      "properties": {
+        "name": { "$ref": "#/$defs/NameToken" },
+        "label": { "$ref": "#/$defs/DisplayName" },
+        "min": { "$ref": "#/$defs/Radians" },
+        "max": { "$ref": "#/$defs/Radians" },
+        "home": { "$ref": "#/$defs/Radians" }
+      }
+    },
+    "DescriptorArm": {
+      "title": "DescriptorArm",
+      "description": "One arm. joints are in command order. An empty arms array means the robot has no arm.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "joints"],
+      "properties": {
+        "name": { "$ref": "#/$defs/NameToken" },
+        "joints": {
+          "description": "Revolute joints in command order. At least one.",
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/DescriptorJoint" }
+        }
+      }
+    },
+    "DescriptorTopics": {
+      "title": "DescriptorTopics",
+      "description": "Topics a console should use instead of hard-coded names. cmd is the base command. state is odometry. estop is the e-stop latch. heartbeat and telemetry are the ohho.telemetry.v1 streams. images lists camera topics.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cmd", "state", "estop", "heartbeat", "telemetry", "images"],
+      "properties": {
+        "cmd": { "$ref": "#/$defs/TopicName" },
+        "state": { "$ref": "#/$defs/TopicName" },
+        "estop": { "$ref": "#/$defs/TopicName" },
+        "heartbeat": { "$ref": "#/$defs/TopicName" },
+        "telemetry": { "$ref": "#/$defs/TopicName" },
+        "images": {
+          "description": "Image topics. Every camera.topic must appear here.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/TopicName" }
+        }
+      }
+    },
+    "DescriptorCamera": {
+      "title": "DescriptorCamera",
+      "description": "One camera. topic is the image stream. frame is the optical or camera frame.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "kind", "frame", "topic"],
+      "properties": {
+        "name": { "$ref": "#/$defs/NameToken" },
+        "kind": { "$ref": "#/$defs/CameraKind" },
+        "frame": { "$ref": "#/$defs/NameToken" },
+        "topic": { "$ref": "#/$defs/TopicName" }
+      }
+    },
+    "AprilTag": {
+      "title": "AprilTag",
+      "description": "One AprilTag fixed to the robot. T_tag_base takes the tag frame into the base frame.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "size", "T_tag_base"],
+      "properties": {
+        "id": { "$ref": "#/$defs/TagId" },
+        "size": { "$ref": "#/$defs/TagSizeMetres" },
+        "T_tag_base": {
+          "description": "Row-major 4x4 homogeneous transform from the tag frame to the base frame. Translation is metres. Sixteen finite numbers.",
+          "type": "array",
+          "minItems": 16,
+          "maxItems": 16,
+          "items": { "type": "number" }
+        }
+      }
+    },
+    "DescriptorTelemetry": {
+      "title": "DescriptorTelemetry",
+      "description": "Which ohho.telemetry.v1 sample this robot emits. kind is sim or real. fields lists blocks the robot can populate. A schema-valid descriptor is not permission to skip the producer safety gate.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_id", "robot_id", "kind", "fields"],
+      "properties": {
+        "schema_id": { "$ref": "#/$defs/TelemetrySchemaId" },
+        "robot_id": { "$ref": "#/$defs/RobotId" },
+        "kind": { "$ref": "#/$defs/DescriptorKind" },
+        "fields": {
+          "description": "Telemetry blocks this robot can emit, in sample order.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/TelemetryBlock" }
+        }
+      }
+    },
+    "HardSafetyCaps": {
+      "title": "HardSafetyCaps",
+      "description": "Hard safety caps. A consumer must not command above these. Maximums are the OmniBot ceilings: 0.2 m/s linear, 1.0 rad/s yaw, 0.5 m/s^2 linear acceleration, 2.0 rad/s^2 yaw acceleration, 0.15 rad joint step. Do not raise them. A tighter clamp in the driver or safety gate stays in force. This object is not a motion permit.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_vx_mps",
+        "max_vy_mps",
+        "max_wz_rad_s",
+        "max_accel_x_mps2",
+        "max_accel_y_mps2",
+        "max_accel_wz_rad_s2",
+        "max_joint_step_rad"
+      ],
+      "properties": {
+        "max_vx_mps": {
+          "description": "Hard cap on forward speed in metres per second. Ceiling 0.2.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 0.2
+        },
+        "max_vy_mps": {
+          "description": "Hard cap on lateral speed in metres per second. Ceiling 0.2.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 0.2
+        },
+        "max_wz_rad_s": {
+          "description": "Hard cap on yaw rate in radians per second. Ceiling 1.0.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1.0
+        },
+        "max_accel_x_mps2": {
+          "description": "Hard cap on forward acceleration in metres per second squared. Ceiling 0.5.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 0.5
+        },
+        "max_accel_y_mps2": {
+          "description": "Hard cap on lateral acceleration in metres per second squared. Ceiling 0.5.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 0.5
+        },
+        "max_accel_wz_rad_s2": {
+          "description": "Hard cap on yaw acceleration in radians per second squared. Ceiling 2.0.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2.0
+        },
+        "max_joint_step_rad": {
+          "description": "Hard cap on joint-target change per accepted command, in radians. Ceiling 0.15.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 0.15
+        }
+      }
+    },
+    "DescriptorSafety": {
+      "title": "DescriptorSafety",
+      "description": "Safety block. hard is required. Missing hard caps are invalid and must not be treated as unlimited.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hard"],
+      "properties": {
+        "hard": { "$ref": "#/$defs/HardSafetyCaps" }
+      }
+    }
+  }
+}

@@ -121,4 +121,31 @@ A full sample with base, joints, IMU, battery, nav, policy, recording, and host 
 - **OHH-208 / OmniBot** — `telemetry_aggregator` should emit this sample instead of leaving VR, apk, and web on raw ROS topics.
 - **ohho-os** — publish `SafetyState` and `TelemetryV1` from the engine. Do not treat this document as a replacement for `SafetyGate` caps, the e-stop latch, or the deadman arming phrase.
 - **OhhO-VR** — compile `generated/csharp/Ohho.Schemas` (Newtonsoft, namespace `Ohho.Schemas`) in the VR tests and stop parsing raw ROS for this contract. Map the VR string `nav2` to `mode.base = "auto"` when that wiring lands.
-- **OHH-214** — `RobotDescriptor` can point at `robot_id` and `kind` from this sample.
+- **OHH-214** — `RobotDescriptor` names `robot_id` and `kind` from this sample. See below.
+
+## ohho.descriptor.v1
+
+Source schemas:
+
+- `ohho.descriptor.v1/descriptor.json` — latched robot descriptor
+- `ohho.descriptor.v1/defs.json` — shared fields
+- `ohho.descriptor.v1/manifest.json` — schema id `ohho.descriptor.v1`, semver `1.0.0`
+
+The golden OmniBot document is `ohho.descriptor.v1/vectors/descriptor/valid/omnibot.json`.
+
+Regenerate after a schema edit:
+
+```bash
+npm run codegen:descriptor
+npm run codegen:descriptor -- --check
+```
+
+| Output | Path |
+| --- | --- |
+| TypeScript | `src/generated/descriptor.generated.ts` |
+| C# (Newtonsoft, namespace `Ohho.Schemas`, netstandard2.1) | `generated/csharp/Ohho.Schemas/DescriptorV1.generated.cs` |
+| Python (pydantic v2) | `generated/python/ohho_schemas/descriptor_v1.py` |
+
+C# reuses `OhhoJson` and `OhhoValidate` from the telemetry file. Hard-cap maximums are the OmniBot ceilings and must not be raised: 0.2 m/s linear, 1.0 rad/s yaw, 0.5 m/s² linear acceleration, 2.0 rad/s² yaw acceleration, 0.15 rad joint step. A document at the ceiling does not raise a tighter driver clamp. A schema-valid descriptor is not permission to skip the producer safety gate.
+
+`v` follows the same major/minor/patch rules as ohho.telemetry.v1. Joint `min` / `max` / `home` are radians. AprilTag `size` is metres. `T_tag_base` is a row-major 4×4 transform into the base frame. OmniBot ships with an empty `apriltags` array.
