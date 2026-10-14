@@ -1,7 +1,10 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, it, expect } from "vitest";
 
 import {
   buildPacket,
+  packetBeep,
   packetMotion,
   packetSetCarType,
   HEAD_TX,
@@ -55,6 +58,32 @@ describe("yahboom encoder", () => {
     const pkt = packetMotion(100, 0, 0); // 100000 → clamp 32767 = 0x7FFF
     expect(pkt[5]).toBe(0xff);
     expect(pkt[6]).toBe(0x7f);
+  });
+
+  it("matches shared JSON test vectors", () => {
+    const vectorsPath = join(__dirname, "../test-vectors/yahboom-packets.json");
+    const { vectors } = JSON.parse(readFileSync(vectorsPath, "utf8")) as {
+      vectors: Array<{
+        id: string;
+        fn: string;
+        args?: number[];
+        func?: number;
+        payload?: number[];
+        bytes: number[];
+      }>;
+    };
+
+    const builders: Record<string, (entry: (typeof vectors)[number]) => Uint8Array> = {
+      buildPacket: (e) => buildPacket(e.func!, e.payload!),
+      packetSetCarType: (e) => packetSetCarType(e.args![0]),
+      packetMotion: (e) => packetMotion(e.args![0], e.args![1], e.args![2]),
+      packetBeep: (e) => packetBeep(e.args![0]),
+    };
+
+    for (const entry of vectors) {
+      const pkt = builders[entry.fn](entry);
+      expect(Array.from(pkt), entry.id).toEqual(entry.bytes);
+    }
   });
 });
 
@@ -130,5 +159,26 @@ describe("transport factory", () => {
       expect(t.protocol).toBe(p);
       expect(t.getStatus().state).toBe("idle");
     }
+  });
+});
+
+describe("simulated transport", () => {
+  it("connects, accepts velocity, and emits odometry", async () => {
+    const rc = defaultRobotConfig();
+    const t = createTransport(rc, { protocol: "simulated" });
+    const status = await t.connect();
+    expect(status.state).toBe("connected");
+
+    let lastOdom: { x: number; y: number } | undefined;
+    t.onTelemetry((tel) => {
+      if (tel.odom) lastOdom = tel.odom;
+    });
+
+    t.sendVelocity({ linearX: 0.3, linearY: 0, angularZ: 0 });
+    await new Promise((r) => setTimeout(r, 250));
+    t.disconnect();
+
+    expect(lastOdom).toBeDefined();
+    expect(lastOdom!.x).not.toBe(0);
   });
 });

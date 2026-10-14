@@ -8,6 +8,7 @@
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "codegen:schemas": "node scripts/codegen-transport-schemas.mjs",
+    "demo": "node scripts/connect-demo.mjs",
     "lint": "npm run lint --workspaces --if-present",
     "test": "vitest run",
     "typecheck": "tsc -b"
