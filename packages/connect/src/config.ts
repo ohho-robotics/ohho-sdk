@@ -6,8 +6,8 @@
  * across devices.
  */
 
-import { updateUserRobot } from "@/lib/garage/client";
-import type { UserRobot } from "@/lib/garage/types";
+import { updateUserRobot } from "@ohho/schemas";
+import type { UserRobot } from "@ohho/schemas";
 import { DEFAULT_ROSBRIDGE_ADDRESS } from "./protocols";
 import type { ConnectionConfig } from "./types";
 

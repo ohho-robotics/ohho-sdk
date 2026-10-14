@@ -2,11 +2,20 @@
   "name": "@ohho/schemas",
   "version": "1.0.0",
   "description": "OhhO JSON and Zod Schemas",
-  "main": "index.ts",
-  "types": "index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
   "scripts": {
-    "build": "tsc",
-    "lint": "eslint ."
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint .",
+    "test": "vitest run --config ../../vitest.config.ts src"
   },
   "dependencies": {
     "zod": "^3.0.0"
