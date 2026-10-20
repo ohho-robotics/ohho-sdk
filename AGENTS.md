@@ -9,5 +9,7 @@ From the repository root:
 - `npm run build` — emit compiled output to each package's `dist/`.
 - `npm test` — Vitest (schemas, connect simulated transport, client).
 - `npm run lint` — ESLint per workspace.
+- `npm run demo` — runs `scripts/connect-demo.mjs` against **SimulatedTransport** (requires build first).
+- `packages/connect/test-vectors/yahboom-packets.json` — shared golden bytes for TS (Vitest) and optional Python (`test_yahboom_vectors.py`).
 
 `@ohho/mcp` is private and not published (see OHH-173). Publishing `@ohho/connect`, `@ohho/schemas`, and `@ohho/client` is manual; see `.github/workflows/release.yml`.
