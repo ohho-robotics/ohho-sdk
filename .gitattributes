@@ -3,4 +3,6 @@ generated/** text eol=lf linguist-generated
 packages/schemas/src/generated/** text eol=lf linguist-generated
 packages/schemas/src/protocol-version.generated.ts text eol=lf linguist-generated
 packages/schemas/ohho.telemetry.v1/** text eol=lf
+packages/schemas/ohho.descriptor.v1/** text eol=lf
 scripts/codegen-telemetry.mjs text eol=lf
+scripts/codegen-descriptor.mjs text eol=lf

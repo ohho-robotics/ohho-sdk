@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ohho-robotics.com/schemas/ohho.descriptor.v1/descriptor.json",
+  "title": "RobotDescriptor",
+  "description": "ohho.descriptor.v1 robot descriptor. Published latched as JSON on /ohho/descriptor. Safety hard caps are required. Their maximums are the OmniBot ceilings and must not be raised. A schema-valid descriptor is not permission to skip the producer safety gate, and it does not raise a tighter driver clamp.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "v",
+    "id",
+    "model",
+    "drive",
+    "arms",
+    "topics",
+    "cameras",
+    "urdf_url",
+    "apriltags",
+    "telemetry",
+    "safety"
+  ],
+  "properties": {
+    "v": { "$ref": "defs.json#/$defs/SchemaVersion" },
+    "id": { "$ref": "defs.json#/$defs/RobotId" },
+    "model": { "$ref": "defs.json#/$defs/DisplayName" },
+    "drive": { "$ref": "defs.json#/$defs/DescriptorDrive" },
+    "arms": {
+      "description": "Arms. Empty when the robot has no arm.",
+      "type": "array",
+      "items": { "$ref": "defs.json#/$defs/DescriptorArm" }
+    },
+    "topics": { "$ref": "defs.json#/$defs/DescriptorTopics" },
+    "cameras": {
+      "description": "Cameras. Empty when the robot has no camera.",
+      "type": "array",
+      "items": { "$ref": "defs.json#/$defs/DescriptorCamera" }
+    },
+    "urdf_url": { "$ref": "defs.json#/$defs/ResourceUrl" },
+    "apriltags": {
+      "description": "AprilTags fixed to the robot. Empty when none are installed. Do not invent a tag.",
+      "type": "array",
+      "items": { "$ref": "defs.json#/$defs/AprilTag" }
+    },
+    "telemetry": { "$ref": "defs.json#/$defs/DescriptorTelemetry" },
+    "safety": { "$ref": "defs.json#/$defs/DescriptorSafety" }
+  }
+}
