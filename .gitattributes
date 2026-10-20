@@ -1,0 +1,6 @@
+# Generated artifacts stay LF so codegen --check matches on Windows (core.autocrlf=true).
+generated/** text eol=lf linguist-generated
+packages/schemas/src/generated/** text eol=lf linguist-generated
+packages/schemas/src/protocol-version.generated.ts text eol=lf linguist-generated
+packages/schemas/ohho.telemetry.v1/** text eol=lf
+scripts/codegen-telemetry.mjs text eol=lf
