@@ -10,7 +10,7 @@
  *   latency    : measured via the /rosapi/get_time service round-trip
  */
 
-import type { RobotConfig } from "@/lib/garage/robot-config";
+import type { RobotConfig } from "@ohho/schemas";
 import type {
   ConnectionConfig,
   JointReading,

@@ -13,8 +13,8 @@ import {
   jsonResult,
   type InputSchema,
   type JsonSchemaProperty,
-} from "@/lib/mcp/types";
-import { PREDICTIONS, WHATIF_RESULTS, TWIN_STATS } from "@/lib/twin/twin-data";
+} from "./types";
+import { PREDICTIONS, WHATIF_RESULTS, TWIN_STATS } from "./lib/twin/twin-data";
 
 const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
 

@@ -17,8 +17,8 @@ import {
   errorResult,
   type InputSchema,
   type JsonSchemaProperty,
-} from "@/lib/mcp/types";
-import { WORK_ORDERS, REPAIR_LOG, FLEET_METRICS, type WorkOrderStatus } from "@/lib/care/care-data";
+} from "./types";
+import { WORK_ORDERS, REPAIR_LOG, FLEET_METRICS, type WorkOrderStatus } from "./lib/care/care-data";
 
 const s = (props: Record<string, JsonSchemaProperty>, required: string[] = []): InputSchema => ({ type: "object", properties: props, required });
 

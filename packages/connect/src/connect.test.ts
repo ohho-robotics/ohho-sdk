@@ -22,8 +22,8 @@ import {
   effectiveConnectionConfig,
 } from "./config";
 import { createTransport } from "./factory";
-import { defaultRobotConfig } from "@/lib/garage/robot-config";
-import type { UserRobot } from "@/lib/garage/types";
+import { defaultRobotConfig } from "@ohho/schemas";
+import type { UserRobot } from "@ohho/schemas";
 import type { ConnectionConfig } from "./types";
 
 // ── Yahboom protocol encoder ──────────────────────────────────────────────────

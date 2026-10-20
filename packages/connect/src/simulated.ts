@@ -4,7 +4,7 @@
  * without a robot. Velocity commands move the simulated pose.
  */
 
-import type { RobotConfig } from "@/lib/garage/robot-config";
+import type { RobotConfig } from "@ohho/schemas";
 import type {
   ConnectionConfig,
   RobotTelemetry,

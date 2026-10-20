@@ -5,7 +5,7 @@
 import {
   type ToolDefinition, type InputSchema, type JsonSchemaProperty,
   jsonResult,
-} from "@/lib/mcp/types";
+} from "./types";
 
 const METHODS = ["smolvla", "act", "diffusion", "openvla", "rl (ppo)"];
 

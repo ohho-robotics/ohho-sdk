@@ -5,7 +5,7 @@
 import {
   type ToolDefinition, type InputSchema, type JsonSchemaProperty,
   jsonResult, errorResult,
-} from "@/lib/mcp/types";
+} from "./types";
 
 const LOOP_PHASES = ["perceive", "reason", "verify", "act", "monitor", "reflect", "remember"];
 

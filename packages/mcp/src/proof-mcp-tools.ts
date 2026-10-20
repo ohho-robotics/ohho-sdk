@@ -5,8 +5,8 @@
 import {
   type ToolDefinition, type InputSchema, type JsonSchemaProperty,
   jsonResult, errorResult,
-} from "@/lib/mcp/types";
-import { INITIAL_SUITES, INITIAL_COVERAGE, REGRESSION_DATA } from "@/lib/proof/proof-data";
+} from "./types";
+import { INITIAL_SUITES, INITIAL_COVERAGE, REGRESSION_DATA } from "./lib/proof/proof-data";
 
 const s = (props: Record<string, JsonSchemaProperty>, required: string[] = []): InputSchema =>
   ({ type: "object", properties: props, required });

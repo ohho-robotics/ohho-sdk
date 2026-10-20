@@ -17,15 +17,14 @@
 
 import {
   type ToolDefinition,
-  textResult,
   jsonResult,
   errorResult,
   type InputSchema,
   type JsonSchemaProperty,
-} from "@/lib/mcp/types";
-import { PROTOCOLS, getProtocol } from "@/lib/connect/protocols";
-import { defaultConnectionConfig } from "@/lib/connect/config";
-import type { Velocity, ConnectionProtocol } from "@/lib/connect/types";
+} from "./types";
+import { PROTOCOLS, getProtocol } from "@ohho/connect";
+import { defaultConnectionConfig } from "@ohho/connect";
+import type { Velocity, ConnectionProtocol } from "@ohho/connect";
 
 const s = (props: Record<string, JsonSchemaProperty>, required: string[] = []): InputSchema => ({ type: "object", properties: props, required });
 

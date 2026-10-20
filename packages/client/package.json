@@ -2,13 +2,21 @@
   "name": "@ohho/client",
   "version": "1.0.0",
   "description": "OhhO REST API Client",
-  "main": "index.ts",
-  "types": "index.ts",
-  "scripts": {
-    "build": "tsc",
-    "lint": "eslint ."
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
   },
-  "dependencies": {},
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint .",
+    "test": "vitest run --config ../../vitest.config.ts src"
+  },
   "devDependencies": {
     "typescript": "^5.0.0"
   }
