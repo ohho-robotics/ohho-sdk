@@ -1,0 +1,31 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: en-GB
+tone_instructions: "Be concise, direct and constructive. Flag real bugs, security gaps and edge cases first; skip nitpicks that tooling already catches."
+reviews:
+  profile: assertive
+  request_changes_workflow: false
+  high_level_summary: true
+  auto_review:
+    enabled: true
+    drafts: true
+  path_instructions:
+    - path: "packages/**/*.ts"
+      instructions: |
+        Public TypeScript SDK. Treat exported APIs as stable: flag breaking changes without a
+        changelog note, weak typing (any), unhandled promise rejections, and missing input validation.
+    - path: "packages/schemas/**"
+      instructions: |
+        Schema changes must be backwards compatible or explicitly versioned; check generated code is in sync.
+    - path: "generated/**"
+      instructions: |
+        Generated code: should only change via scripts/codegen-*; flag hand edits.
+    - path: "**/*.test.ts"
+      instructions: |
+        Check tests cover edge cases and error paths and are deterministic.
+    - path: ".github/workflows/**"
+      instructions: |
+        Check actions are pinned (ideally to a commit SHA), permissions follow least privilege,
+        secrets are never echoed or exposed to untrusted PR code, and caching/matrix logic is correct.
+    - path: "**/*.md"
+      instructions: |
+        Check docs stay accurate against the code (commands, paths, flags). Flag unverifiable claims.
