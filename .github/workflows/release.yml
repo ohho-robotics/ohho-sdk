@@ -1,8 +1,9 @@
 # Manual npm publish for @ohho/connect, @ohho/schemas, and @ohho/client.
-# @ohho/mcp stays private (OHH-173). Enable only after npm scope access is verified.
+# MCP tool code is not in this repo (OHH-173); see docs/mcp-split.md.
+# Enable only after npm scope access is verified.
 #
 # To use: set `on.workflow_dispatch` below (currently disabled), add NPM_TOKEN repo secret,
-# then run from the Actions tab. Do NOT publish @ohho/mcp.
+# then run from the Actions tab.
 
 name: Release (disabled)
 
