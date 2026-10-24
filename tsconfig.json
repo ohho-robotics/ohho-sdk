@@ -3,7 +3,6 @@
   "references": [
     { "path": "./packages/schemas" },
     { "path": "./packages/connect" },
-    { "path": "./packages/client" },
-    { "path": "./packages/mcp" }
+    { "path": "./packages/client" }
   ]
 }

@@ -1,6 +1,6 @@
 ## Cursor Cloud specific instructions
 
-`ohho-sdk` is an npm-workspaces TypeScript library with four packages: `@ohho/schemas`, `@ohho/connect`, `@ohho/mcp` (private), and `@ohho/client`.
+`ohho-sdk` is an npm-workspaces TypeScript library with three packages: `@ohho/schemas`, `@ohho/connect`, and `@ohho/client`. MCP tool code lives in the private console repo and in ohho-os (`ohho mcp`); see `docs/mcp-split.md`.
 
 From the repository root:
 
@@ -10,4 +10,4 @@ From the repository root:
 - `npm test` — Vitest (schemas, connect simulated transport, client).
 - `npm run lint` — ESLint per workspace.
 
-`@ohho/mcp` is private and not published (see OHH-173). Publishing `@ohho/connect`, `@ohho/schemas`, and `@ohho/client` is manual; see `.github/workflows/release.yml`.
+Publishing `@ohho/connect`, `@ohho/schemas`, and `@ohho/client` is manual; see `.github/workflows/release.yml`. This workspace does not ship `@ohho/mcp`.
