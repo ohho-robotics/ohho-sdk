@@ -11,7 +11,7 @@
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": ["dist", "ohho.telemetry.v1", "ohho.descriptor.v1"],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "lint": "eslint .",

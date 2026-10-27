@@ -8,6 +8,8 @@
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "codegen:schemas": "node scripts/codegen-transport-schemas.mjs",
+    "codegen:telemetry": "node scripts/codegen-telemetry.mjs",
+    "codegen:descriptor": "node scripts/codegen-descriptor.mjs",
     "demo": "node scripts/connect-demo.mjs",
     "lint": "npm run lint --workspaces --if-present",
     "test": "vitest run",
@@ -15,6 +17,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
+    "ajv": "^8.20.0",
     "eslint": "^9.17.0",
     "globals": "^15.14.0",
     "json-schema-to-typescript": "^15.0.4",

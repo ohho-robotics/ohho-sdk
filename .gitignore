@@ -3,3 +3,6 @@ dist/
 *.tsbuildinfo
 __pycache__/
 *.pyc
+generated/csharp/**/bin/
+generated/csharp/**/obj/
+generated/csharp/**/TestResults/

@@ -35,3 +35,21 @@ npm test
 npm run build
 npm run demo   # SimulatedTransport smoke (after build)
 ```
+
+## Telemetry schema (ohho.telemetry.v1)
+
+`@ohho/schemas` also publishes **ohho.telemetry.v1**: telemetry, a safety-state
+sample, and heartbeat plus echo. It is independent of `PINNED_PROTOCOL_VERSION`.
+Units are SI and radians (milliseconds and degrees Celsius are named exceptions).
+Minor versions only add optional fields; major versions break. See
+`packages/schemas/README.md`.
+
+```bash
+npm run codegen:telemetry
+npm run codegen:telemetry -- --check
+```
+
+Generated C# (`Ohho.Schemas`, Newtonsoft, netstandard2.1) is under
+`generated/csharp/`, and Python (pydantic v2) is under `generated/python/`.
+CI checks those outputs, validates the golden vectors in Python, and builds and
+tests the C#.
