@@ -1,6 +1,8 @@
 # ohho-sdk
 
-TypeScript client SDK for OhhO robots: `@ohho/connect`, `@ohho/schemas`, `@ohho/client` (and `@ohho/mcp`, pending split).
+TypeScript client SDK for OhhO robots: `@ohho/connect`, `@ohho/schemas`, and `@ohho/client`.
+
+MCP tools are split per [docs/mcp-split.md](docs/mcp-split.md) (hosted console vs on-robot `ohho mcp`).
 
 Engine / on-robot OS: https://github.com/ohho-robotics/ohho-os
 
