@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "description": "Shared Yahboom TX packet golden bytes — keep in sync with packages/yahboom_ros2/protocol.py when present in ohho-os.",
+  "vectors": [
+    {
+      "id": "set_car_type_mecanum_x3",
+      "fn": "packetSetCarType",
+      "args": [1],
+      "bytes": [255, 252, 4, 21, 1, 26]
+    },
+    {
+      "id": "motion_half_mps",
+      "fn": "packetMotion",
+      "args": [0.5, 0, 0],
+      "bytes": [255, 252, 10, 18, 1, 244, 1, 0, 0, 0, 0, 18]
+    },
+    {
+      "id": "motion_clamp_high_vx",
+      "fn": "packetMotion",
+      "args": [100, 0, 0],
+      "bytes": [255, 252, 10, 18, 1, 255, 127, 0, 0, 0, 0, 155]
+    },
+    {
+      "id": "build_packet_set_car_type_payload",
+      "fn": "buildPacket",
+      "func": 21,
+      "payload": [1, 2, 3],
+      "bytes": [255, 252, 6, 21, 1, 2, 3, 33]
+    },
+    {
+      "id": "beep_500ms",
+      "fn": "packetBeep",
+      "args": [500],
+      "bytes": [255, 252, 5, 2, 244, 1, 252]
+    }
+  ]
+}

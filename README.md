@@ -33,6 +33,7 @@ npm ci
 npm run codegen:schemas
 npm test
 npm run build
+npm run demo   # SimulatedTransport smoke (after build)
 ```
 
 ## Telemetry schema (ohho.telemetry.v1)
